@@ -15,22 +15,28 @@ struct UIAXHelper {
     }
 
     static func children(of element: AXUIElement) -> [AXUIElement] {
-        guard let childVal = axValue(of: element, attribute: kAXChildrenAttribute) else { return [] }
+        guard let childVal = axValue(of: element, attribute: kAXChildrenAttribute as CFString) else { return [] }
         if let arr = childVal as? [AXUIElement] { return arr }
         if let arr = childVal as? [Any] {
-            return arr.compactMap { $0 as? AXUIElement }
+            return arr.compactMap { item in
+                guard let cf = item as CFTypeRef? else { return nil }
+                if CFGetTypeID(cf) == AXUIElementGetTypeID() {
+                    return (item as! AXUIElement)
+                }
+                return nil
+            }
         }
         return []
     }
 
     static func role(of element: AXUIElement) -> String? {
-        return axValue(of: element, attribute: kAXRoleAttribute) as? String
+        return axValue(of: element, attribute: kAXRoleAttribute as CFString) as? String
     }
 
     static func value(of element: AXUIElement) -> String? {
         // kAXValueAttribute may be a CFString or other
-        if let v = axValue(of: element, attribute: kAXValueAttribute) as? String { return v }
-        if let t = axValue(of: element, attribute: kAXTitleAttribute) as? String { return t }
+        if let v = axValue(of: element, attribute: kAXValueAttribute as CFString) as? String { return v }
+        if let t = axValue(of: element, attribute: kAXTitleAttribute as CFString) as? String { return t }
         return nil
     }
 
@@ -47,7 +53,7 @@ struct UIAXHelper {
     static func findStaticTextValue(in appElement: AXUIElement, timeout: TimeInterval = 5.0) -> String? {
         let start = Date()
         while Date().timeIntervalSince(start) < timeout {
-            if let windowsVal = axValue(of: appElement, attribute: kAXWindowsAttribute) as? [AXUIElement] {
+            if let windowsVal = axValue(of: appElement, attribute: kAXWindowsAttribute as CFString) as? [AXUIElement] {
                 for win in windowsVal {
                     if let t = findFirstStaticText(in: win), let val = value(of: t) {
                         return val

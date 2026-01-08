@@ -11,12 +11,20 @@ let package = Package(
     products: [
         .executable(name: "Tasks.mac", targets: ["Tasks.mac"]),
     ],
+    dependencies: [
+        .package(url: "https://github.com/Quick/Quick.git", from: "6.0.0"),
+        .package(url: "https://github.com/Quick/Nimble.git", from: "11.0.0"),
+    ],
     targets: [
         .executableTarget(name: "Tasks.mac", path: "Sources/Tasks.mac"),
         .executableTarget(name: "AcceptanceRunner"),
         .testTarget(
             name: "AcceptanceTests",
-            dependencies: ["Tasks.mac"]
+            dependencies: [
+                "Tasks.mac",
+                .product(name: "Quick", package: "Quick"),
+                .product(name: "Nimble", package: "Nimble"),
+            ]
         ),
     ]
 )
