@@ -58,8 +58,8 @@ class AcceptanceSpec: QuickSpec {
                 guard let p = process else { fail("Process not started"); return }
                 let pid = p.processIdentifier
                 let appElement = AXUIElementCreateApplication(pid)
-                let found = UIAXHelper.findStaticTextValue(in: appElement, timeout: 6.0)
-                expect(found).to(equal("Hello, World!"))
+                let found = UIAXHelper.findAllStaticTextValue(in: appElement, timeout: 6.0)
+                expect(found).to(contain("Hello, World!"))
             }
 
             it("has a sidebar") {
@@ -73,7 +73,7 @@ class AcceptanceSpec: QuickSpec {
                 let pid = p.processIdentifier
                 let mainElement = AXUIElementCreateApplication(pid)                
 
-                let sidebarElem = UIAXHelper.findElementByRole(in: mainElement, as: kAXOutlineRole)
+                let sidebarElem = UIAXHelper.findFirstElementByRole(in: mainElement, as: kAXOutlineRole)
                 expect(sidebarElem).notTo(beNil())
             }
         }

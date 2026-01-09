@@ -4,6 +4,7 @@ import SwiftUI
 struct TasksApp: App {
     var body: some Scene {
         WindowGroup {
+            SidebarView()
             ContentView()
         }
     }

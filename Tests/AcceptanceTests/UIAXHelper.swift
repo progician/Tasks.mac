@@ -65,14 +65,41 @@ struct UIAXHelper {
         return nil
     }
 
-    static func findElementByRole(in element: AXUIElement, as elementRole: String, timeout: TimeInterval = 5.0) -> AXUIElement? {
+    static func findFirstElementByRole(in element: AXUIElement, as elementRole: String, timeout: TimeInterval = 5.0) -> AXUIElement? {
         if let role = role(of: element), role == elementRole as String {
             return element
         }
         for child in children(of: element) {
-            if let found = findElementByRole(in: child, as: elementRole) { return found }
+            if let found = findFirstElementByRole(in: child, as: elementRole) { return found }
         }
 
         return nil
+    }
+
+    static func findElementsByRole(in element: AXUIElement, as elementRole: String, timeout: TimeInterval = 5.0) -> Array<AXUIElement> {
+        var results = Array<AXUIElement>()
+        if let role = role(of: element), role == elementRole as String {
+            results.append(element)
+        }
+        for child in children(of: element) {
+            let found = findElementsByRole(in: child, as: elementRole, timeout: timeout)
+            results.append(contentsOf: found)
+        }
+        return results
+    }
+
+    static func findAllStaticTextValue(in appElement: AXUIElement, timeout: TimeInterval = 5.0) -> Array<String?> {
+        var results = Array<String?>()
+        let start = Date()
+        while Date().timeIntervalSince(start) < timeout {
+            if let windowsVal = axValue(of: appElement, attribute: kAXWindowsAttribute as CFString) as? [AXUIElement] {
+                for win in windowsVal {
+                    let textElems = findElementsByRole(in: win, as: kAXStaticTextRole)
+                    results.append(contentsOf: textElems.map { value(of: $0) })
+                }
+            }
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
+        }
+        return results
     }
 }
