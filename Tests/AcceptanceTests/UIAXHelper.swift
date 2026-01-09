@@ -64,4 +64,15 @@ struct UIAXHelper {
         }
         return nil
     }
+
+    static func findElementByRole(in element: AXUIElement, as elementRole: String, timeout: TimeInterval = 5.0) -> AXUIElement? {
+        if let role = role(of: element), role == elementRole as String {
+            return element
+        }
+        for child in children(of: element) {
+            if let found = findElementByRole(in: child, as: elementRole) { return found }
+        }
+
+        return nil
+    }
 }

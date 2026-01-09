@@ -17,9 +17,8 @@ let package = Package(
     ],
     targets: [
         .executableTarget(name: "Tasks.mac", path: "Sources/Tasks.mac"),
-        .executableTarget(name: "AcceptanceRunner"),
         .testTarget(
-            name: "AcceptanceTests",
+            name: "Tasks.mac.at",
             dependencies: [
                 "Tasks.mac",
                 .product(name: "Quick", package: "Quick"),
