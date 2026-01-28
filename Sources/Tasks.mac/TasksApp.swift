@@ -4,8 +4,9 @@ import SwiftUI
 struct TasksApp: App {
     var body: some Scene {
         WindowGroup {
-            NavigationView {
+            NavigationSplitView {
                 SidebarView()
+            } detail: {
                 ContentView()
             }
         }
@@ -29,9 +30,9 @@ struct ContentView: View {
             HStack {
                 Text("277 Completed")
                     .font(.caption)
-                    .foregroundColor(.gray)
+                    .foregroundColor(.secondary)
                 Text("·")
-                    .foregroundColor(.gray)
+                    .foregroundColor(.secondary)
                 Text("Show")
                     .font(.caption)
                     .foregroundColor(.blue)
@@ -41,6 +42,7 @@ struct ContentView: View {
             .padding(.bottom)
             
             Divider()
+                .opacity(0.2)
             
             TaskListView()
             

@@ -30,15 +30,17 @@ struct TaskListView: View {
                     
                     Text(task.title)
                         .strikethrough(task.isCompleted)
-                        .foregroundColor(task.isCompleted ? .gray : .black)
+                        .foregroundColor(task.isCompleted ? .secondary : .primary)
                     
                     Spacer()
                 }
                 .padding(.vertical, 8)
                 .padding(.horizontal)
+                .contentShape(Rectangle())
                 
                 if task != tasks.last {
                     Divider()
+                        .opacity(0.2)
                 }
             }
         }

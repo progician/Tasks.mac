@@ -7,12 +7,12 @@ struct SidebarView: View {
                 HStack {
                     Text("Today")
                     Spacer()
-                    Text("5").font(.caption).foregroundColor(.gray)
+                    Text("5").font(.caption).foregroundColor(.secondary)
                 }
                 HStack {
                     Text("Scheduled")
                     Spacer()
-                    Text("3").font(.caption).foregroundColor(.gray)
+                    Text("3").font(.caption).foregroundColor(.secondary)
                 }
             }
             
@@ -20,12 +20,12 @@ struct SidebarView: View {
                 HStack {
                     Text("All")
                     Spacer()
-                    Text("44").font(.caption).foregroundColor(.gray)
+                    Text("44").font(.caption).foregroundColor(.secondary)
                 }
                 HStack {
                     Text("Completed")
                     Spacer()
-                    Text("277").font(.caption).foregroundColor(.gray)
+                    Text("277").font(.caption).foregroundColor(.secondary)
                 }
             }
             
@@ -47,4 +47,3 @@ struct SidebarView: View {
         .listStyle(.sidebar)
     }
 }
-
