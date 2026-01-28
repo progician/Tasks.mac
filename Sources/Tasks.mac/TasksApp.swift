@@ -9,6 +9,7 @@ struct TasksApp: App {
                 ContentView()
             }
         }
+        .windowStyle(.hiddenTitleBar)
     }
 }
 

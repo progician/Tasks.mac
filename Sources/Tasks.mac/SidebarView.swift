@@ -45,6 +45,7 @@ struct SidebarView: View {
             }
         }
         .listStyle(.sidebar)
+        .ignoresSafeArea(edges: .top)
     }
 }
 
