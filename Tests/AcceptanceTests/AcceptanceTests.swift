@@ -130,6 +130,26 @@ class AcceptanceSpec: QuickSpec {
                 let sidebarElem = UIAXHelper.findFirstElementByRole(in: mainElement, as: kAXOutlineRole)
                 expect(sidebarElem).notTo(beNil())
             }
+
+            it("shows sidebar item count badges") {
+                if !AXIsProcessTrusted() {
+                    pending("Accessibility permission required to inspect UI") { }
+                    return
+                }
+
+                guard let p = process else { fail("Process not started"); return }
+                let pid = p.processIdentifier
+                let appElement = AXUIElementCreateApplication(pid)
+                let found = UIAXHelper.findAllStaticTextValue(in: appElement, timeout: 6.0)
+                
+                // Verify count badges appear next to sidebar items
+                expect(found).to(contain("Today"))
+                expect(found).to(contain("5"))  // Today count
+                expect(found).to(contain("Scheduled"))
+                expect(found).to(contain("3"))  // Scheduled count
+                expect(found).to(contain("All"))
+                expect(found).to(contain("44")) // All count
+            }
         }
     }
 }

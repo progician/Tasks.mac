@@ -4,13 +4,29 @@ struct SidebarView: View {
     var body: some View {
         List {
             Section("Quick Access") {
-                Text("Today")
-                Text("Scheduled")
+                HStack {
+                    Text("Today")
+                    Spacer()
+                    Text("5").font(.caption).foregroundColor(.gray)
+                }
+                HStack {
+                    Text("Scheduled")
+                    Spacer()
+                    Text("3").font(.caption).foregroundColor(.gray)
+                }
             }
             
             Section("Lists") {
-                Text("All")
-                Text("Completed")
+                HStack {
+                    Text("All")
+                    Spacer()
+                    Text("44").font(.caption).foregroundColor(.gray)
+                }
+                HStack {
+                    Text("Completed")
+                    Spacer()
+                    Text("277").font(.caption).foregroundColor(.gray)
+                }
             }
             
             Section("My Lists") {
