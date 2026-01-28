@@ -10,7 +10,7 @@ XCTEST_EXECUTABLE := $(XCTEST_BUNDLE)/Contents/MacOS/Tasks.macPackageTests
 
 all: bundle
 
-$(BUILD_BIN_PATH)/$(EXECUTABLE_NAME): ./Sources/Tasks.mac/SidebarView.swift  ./Sources/Tasks.mac/TasksApp.swift
+$(BUILD_BIN_PATH)/$(EXECUTABLE_NAME): ./Sources/Tasks.mac/SidebarView.swift  ./Sources/Tasks.mac/TasksApp.swift ./Sources/Tasks.mac/TaskListView.swift ./Sources/Tasks.mac/Task.swift
 	swift build
 
 $(BUNDLE_BIN_PATH)/$(EXECUTABLE_NAME): $(BUILD_BIN_PATH)/$(EXECUTABLE_NAME)

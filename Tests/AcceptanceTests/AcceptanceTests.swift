@@ -86,6 +86,36 @@ class AcceptanceSpec: QuickSpec {
                 expect(found).to(contain("277 Completed"))
             }
 
+            it("shows task list with checkbox elements") {
+                if !AXIsProcessTrusted() {
+                    pending("Accessibility permission required to inspect UI") { }
+                    return
+                }
+
+                guard let p = process else { fail("Process not started"); return }
+                let pid = p.processIdentifier
+                let mainElement = AXUIElementCreateApplication(pid)
+                
+                // Find buttons (checkboxes are usually represented as buttons)
+                let buttons = UIAXHelper.findElementsByRole(in: mainElement, as: kAXButtonRole)
+                expect(buttons.count).to(beGreaterThan(0))
+            }
+
+            it("shows task with text content") {
+                if !AXIsProcessTrusted() {
+                    pending("Accessibility permission required to inspect UI") { }
+                    return
+                }
+
+                guard let p = process else { fail("Process not started"); return }
+                let pid = p.processIdentifier
+                let appElement = AXUIElementCreateApplication(pid)
+                let found = UIAXHelper.findAllStaticTextValue(in: appElement, timeout: 6.0)
+                
+                // Check for first task from the image
+                expect(found).to(contain("Check in on buying the house on Hengrove"))
+            }
+
             it("has a sidebar") {
                 if !AXIsProcessTrusted() {
                     pending("Accessibility permission required to inspect UI") { }
