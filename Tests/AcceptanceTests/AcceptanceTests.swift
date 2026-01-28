@@ -49,7 +49,7 @@ class AcceptanceSpec: QuickSpec {
                 process = nil
             }
 
-            it("shows the expected label") {
+            it("shows sidebar with list items") {
                 if !AXIsProcessTrusted() {
                     pending("Accessibility permission required to inspect UI") { }
                     return
@@ -59,7 +59,14 @@ class AcceptanceSpec: QuickSpec {
                 let pid = p.processIdentifier
                 let appElement = AXUIElementCreateApplication(pid)
                 let found = UIAXHelper.findAllStaticTextValue(in: appElement, timeout: 6.0)
-                expect(found).to(contain("Hello, World!"))
+                
+                // Verify sidebar is showing expected items from different sections
+                expect(found).to(contain("Today"))
+                expect(found).to(contain("Scheduled"))
+                expect(found).to(contain("All"))
+                expect(found).to(contain("Completed"))
+                expect(found).to(contain("[01] This Week"))
+                expect(found).to(contain("[02] Next Week"))
             }
 
             it("has a sidebar") {

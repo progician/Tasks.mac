@@ -13,7 +13,16 @@ struct TasksApp: App {
 struct ContentView: View {
     var body: some View {
         VStack {
-            Text("Hello, World!")
+            HStack {
+                Text("[01] This Week")
+                Text("12")
+            }
+            HStack {
+                Text("277 Completed")
+                Text("·")
+                Text("Show")
+            }
+            Divider()
         }
         .padding()
     }
