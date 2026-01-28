@@ -69,6 +69,23 @@ class AcceptanceSpec: QuickSpec {
                 expect(found).to(contain("[02] Next Week"))
             }
 
+            it("shows content header with title and task count") {
+                if !AXIsProcessTrusted() {
+                    pending("Accessibility permission required to inspect UI") { }
+                    return
+                }
+
+                guard let p = process else { fail("Process not started"); return }
+                let pid = p.processIdentifier
+                let appElement = AXUIElementCreateApplication(pid)
+                let found = UIAXHelper.findAllStaticTextValue(in: appElement, timeout: 6.0)
+                
+                // Verify content header is visible
+                expect(found).to(contain("[01] This Week"))
+                expect(found).to(contain("12"))
+                expect(found).to(contain("277 Completed"))
+            }
+
             it("has a sidebar") {
                 if !AXIsProcessTrusted() {
                     pending("Accessibility permission required to inspect UI") { }
