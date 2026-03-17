@@ -2,18 +2,18 @@ import SwiftUI
 
 struct TaskListView: View {
     @State var tasks: [Task] = [
-        Task(title: "Check in on buying the house on Hengrove"),
-        Task(title: "Schedule a chat with Barbi about budget"),
-        Task(title: "Do a full sweep of the missing budget tracking"),
-        Task(title: "Consolidate budget tracking"),
-        Task(title: "Eye of Jupiter for Viktor's birthday"),
-        Task(title: "Automate categorization of spending entries"),
-        Task(title: "Look up SBX exercise routine"),
-        Task(title: "Log carbot renewal into Loki"),
-        Task(title: "Choose chat apps to use"),
-        Task(title: "Download: Under the salt marsh"),
-        Task(title: "Buy render filler"),
-        Task(title: "Replace Julia's bike wheel inner tube"),
+        Task(title: "Organize emails"),
+        Task(title: "Prepare a to-do list for the week"),
+        Task(title: "Update personal budget spreadsheet"),
+        Task(title: "Clean out the fridge"),
+        Task(title: "Reply to pending messages or emails"),
+        Task(title: "Plan meals for the week"),
+        Task(title: "Review and update your resume"),
+        Task(title: "Research new hobbies or interests"),
+        Task(title: "Tidy up your workspace"),
+        Task(title: "Pay bills or set up automatic payments"),
+        Task(title: "Schedule doctor’s appointments or other necessary meetings"),
+        Task(title: "Declutter one area of your home (e.g., closet, desk, or drawers)"),
     ]
     
     var body: some View {

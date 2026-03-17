@@ -113,7 +113,7 @@ class AcceptanceSpec: QuickSpec {
                 let found = UIAXHelper.findAllStaticTextValue(in: appElement, timeout: 6.0)
                 
                 // Check for first task from the image
-                expect(found).to(contain("Check in on buying the house on Hengrove"))
+                expect(found).to(contain("Organize emails"))
             }
 
             it("has a sidebar") {
