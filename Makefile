@@ -32,3 +32,6 @@ $(XCTEST_EXECUTABLE): $(ACCEPTANCE_TEST_PATH)/AcceptanceTests.swift $(ACCEPTANCE
 
 test: bundle $(XCTEST_EXECUTABLE)
 	AT_BUNDLE_PATH=$(BUNDLE_PATH) swift test --skip-build
+
+lint:
+	swiftlint lint
