@@ -5,150 +5,122 @@ import Foundation
 import ApplicationServices
 
 class AcceptanceSpec: QuickSpec {
+    // swiftlint:disable:next function_body_length
     override func spec() {
+        func withAXApp(process: Process?, test: (AXUIElement) -> Void) {
+            guard AXIsProcessTrusted() else {
+                pending("Accessibility permission required to inspect UI") { }
+                return
+            }
+            guard let proc = process else { fail("Process not started"); return }
+            test(AXUIElementCreateApplication(proc.processIdentifier))
+        }
+
         describe("Main window") {
             var process: Process!
 
+            func launchApp(execPath: String) -> Process? {
+                let newProcess = Process()
+                newProcess.executableURL = URL(fileURLWithPath: execPath)
+                newProcess.standardOutput = Pipe()
+                newProcess.standardError = Pipe()
+                do {
+                    try newProcess.run()
+                } catch {
+                    return nil
+                }
+                return newProcess
+            }
+
             beforeEach {
-                // skip early if Accessibility not granted
                 if !AXIsProcessTrusted() {
-                    pending("Accessibility permission required to run UI acceptance tests. Grant access to the test runner (Terminal or Xcode) in System Settings → Privacy & Security → Accessibility.") { }
+                    let message = "Accessibility permission required to run UI acceptance tests. " +
+                        "Grant access to the test runner (Terminal or Xcode) in " +
+                        "System Settings → Privacy & Security → Accessibility."
+                    pending(message) { }
                     return
                 }
 
                 if let bundlePath = ProcessInfo.processInfo.environment["AT_BUNDLE_PATH"] {
                     let execPath = bundlePath + "/Contents/MacOS/Tasks.mac"
                     guard FileManager.default.fileExists(atPath: execPath) else {
-                        fail("Executable not built at \(execPath). Run `swift build` before running tests or run tests via Xcode.")
+                        fail("Executable not built at \(execPath). " +
+                            "Run `swift build` before running tests or run tests via Xcode.")
                         return
                     }
 
-                    process = Process()
-                    process.executableURL = URL(fileURLWithPath: execPath)
-                    process.standardOutput = Pipe()
-                    process.standardError = Pipe()
-                    do {
-                        try process.run()
-                    } catch {
-                        fail("Failed to launch app: \(error)")
+                    process = launchApp(execPath: execPath)
+                    if process == nil {
+                        fail("Cannot launch executable")
                         return
                     }
 
-                    // small delay for app to start
                     try? await Task.sleep(nanoseconds: 200_000_000)
                 } else {
                     fail("'AT_BUNDLE_PATH' environment variable must be set!")
-                }                
+                }
             }
 
             afterEach {
-                if let p = process, p.isRunning {
-                    p.terminate()
-                    p.waitUntilExit()
+                if let proc = process, proc.isRunning {
+                    proc.terminate()
+                    proc.waitUntilExit()
                 }
                 process = nil
             }
 
             it("shows sidebar with list items") {
-                if !AXIsProcessTrusted() {
-                    pending("Accessibility permission required to inspect UI") { }
-                    return
+                withAXApp(process: process) { appElement in
+                    let found = UIAXHelper.findAllStaticTextValue(in: appElement, timeout: 6.0)
+                    expect(found).to(contain("Today"))
+                    expect(found).to(contain("Scheduled"))
+                    expect(found).to(contain("All"))
+                    expect(found).to(contain("Completed"))
+                    expect(found).to(contain("[01] This Week"))
+                    expect(found).to(contain("[02] Next Week"))
                 }
-
-                guard let p = process else { fail("Process not started"); return }
-                let pid = p.processIdentifier
-                let appElement = AXUIElementCreateApplication(pid)
-                let found = UIAXHelper.findAllStaticTextValue(in: appElement, timeout: 6.0)
-                
-                // Verify sidebar is showing expected items from different sections
-                expect(found).to(contain("Today"))
-                expect(found).to(contain("Scheduled"))
-                expect(found).to(contain("All"))
-                expect(found).to(contain("Completed"))
-                expect(found).to(contain("[01] This Week"))
-                expect(found).to(contain("[02] Next Week"))
             }
 
             it("shows content header with title and task count") {
-                if !AXIsProcessTrusted() {
-                    pending("Accessibility permission required to inspect UI") { }
-                    return
+                withAXApp(process: process) { appElement in
+                    let found = UIAXHelper.findAllStaticTextValue(in: appElement, timeout: 6.0)
+                    expect(found).to(contain("[01] This Week"))
+                    expect(found).to(contain("12"))
+                    expect(found).to(contain("277 Completed"))
                 }
-
-                guard let p = process else { fail("Process not started"); return }
-                let pid = p.processIdentifier
-                let appElement = AXUIElementCreateApplication(pid)
-                let found = UIAXHelper.findAllStaticTextValue(in: appElement, timeout: 6.0)
-                
-                // Verify content header is visible
-                expect(found).to(contain("[01] This Week"))
-                expect(found).to(contain("12"))
-                expect(found).to(contain("277 Completed"))
             }
 
             it("shows task list with checkbox elements") {
-                if !AXIsProcessTrusted() {
-                    pending("Accessibility permission required to inspect UI") { }
-                    return
+                withAXApp(process: process) { mainElement in
+                    let buttons = UIAXHelper.findElementsByRole(in: mainElement, as: kAXButtonRole)
+                    expect(buttons.count).to(beGreaterThan(0))
                 }
-
-                guard let p = process else { fail("Process not started"); return }
-                let pid = p.processIdentifier
-                let mainElement = AXUIElementCreateApplication(pid)
-                
-                // Find buttons (checkboxes are usually represented as buttons)
-                let buttons = UIAXHelper.findElementsByRole(in: mainElement, as: kAXButtonRole)
-                expect(buttons.count).to(beGreaterThan(0))
             }
 
             it("shows task with text content") {
-                if !AXIsProcessTrusted() {
-                    pending("Accessibility permission required to inspect UI") { }
-                    return
+                withAXApp(process: process) { appElement in
+                    let found = UIAXHelper.findAllStaticTextValue(in: appElement, timeout: 6.0)
+                    expect(found).to(contain("Organize emails"))
                 }
-
-                guard let p = process else { fail("Process not started"); return }
-                let pid = p.processIdentifier
-                let appElement = AXUIElementCreateApplication(pid)
-                let found = UIAXHelper.findAllStaticTextValue(in: appElement, timeout: 6.0)
-                
-                // Check for first task from the image
-                expect(found).to(contain("Organize emails"))
             }
 
             it("has a sidebar") {
-                if !AXIsProcessTrusted() {
-                    pending("Accessibility permission required to inspect UI") { }
-                    return
+                withAXApp(process: process) { mainElement in
+                    let sidebarElem = UIAXHelper.findFirstElementByRole(in: mainElement, as: kAXOutlineRole)
+                    expect(sidebarElem).notTo(beNil())
                 }
-
-
-                guard let p = process else { fail("Process not started"); return }
-                let pid = p.processIdentifier
-                let mainElement = AXUIElementCreateApplication(pid)                
-
-                let sidebarElem = UIAXHelper.findFirstElementByRole(in: mainElement, as: kAXOutlineRole)
-                expect(sidebarElem).notTo(beNil())
             }
 
             it("shows sidebar item count badges") {
-                if !AXIsProcessTrusted() {
-                    pending("Accessibility permission required to inspect UI") { }
-                    return
+                withAXApp(process: process) { appElement in
+                    let found = UIAXHelper.findAllStaticTextValue(in: appElement, timeout: 6.0)
+                    expect(found).to(contain("Today"))
+                    expect(found).to(contain("5"))
+                    expect(found).to(contain("Scheduled"))
+                    expect(found).to(contain("3"))
+                    expect(found).to(contain("All"))
+                    expect(found).to(contain("44"))
                 }
-
-                guard let p = process else { fail("Process not started"); return }
-                let pid = p.processIdentifier
-                let appElement = AXUIElementCreateApplication(pid)
-                let found = UIAXHelper.findAllStaticTextValue(in: appElement, timeout: 6.0)
-                
-                // Verify count badges appear next to sidebar items
-                expect(found).to(contain("Today"))
-                expect(found).to(contain("5"))  // Today count
-                expect(found).to(contain("Scheduled"))
-                expect(found).to(contain("3"))  // Scheduled count
-                expect(found).to(contain("All"))
-                expect(found).to(contain("44")) // All count
             }
         }
     }

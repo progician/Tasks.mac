@@ -16,14 +16,13 @@ struct UIAXHelper {
 
     static func children(of element: AXUIElement) -> [AXUIElement] {
         guard let childVal = axValue(of: element, attribute: kAXChildrenAttribute as CFString) else { return [] }
-        if let arr = childVal as? [AXUIElement] { return arr }
-        if let arr = childVal as? [Any] {
-            return arr.compactMap { item in
-                guard let cf = item as CFTypeRef? else { return nil }
-                if CFGetTypeID(cf) == AXUIElementGetTypeID() {
-                    return (item as! AXUIElement)
-                }
-                return nil
+        if let childrenArray = childVal as? [AXUIElement] { return childrenArray }
+        if let childrenArray = childVal as? [Any] {
+            return childrenArray.compactMap { item in
+                guard let childTypeRef = item as CFTypeRef? else { return nil }
+                guard CFGetTypeID(childTypeRef) == AXUIElementGetTypeID() else { return nil }
+                // swiftlint:disable:next force_cast
+                return (item as! AXUIElement)
             }
         }
         return []
@@ -35,8 +34,12 @@ struct UIAXHelper {
 
     static func value(of element: AXUIElement) -> String? {
         // kAXValueAttribute may be a CFString or other
-        if let v = axValue(of: element, attribute: kAXValueAttribute as CFString) as? String { return v }
-        if let t = axValue(of: element, attribute: kAXTitleAttribute as CFString) as? String { return t }
+        if let valueAttribute = axValue(of: element, attribute: kAXValueAttribute as CFString) as? String {
+            return valueAttribute
+        }
+        if let titleAttribute = axValue(of: element, attribute: kAXTitleAttribute as CFString) as? String {
+            return titleAttribute
+        }
         return nil
     }
 
@@ -55,7 +58,7 @@ struct UIAXHelper {
         while Date().timeIntervalSince(start) < timeout {
             if let windowsVal = axValue(of: appElement, attribute: kAXWindowsAttribute as CFString) as? [AXUIElement] {
                 for win in windowsVal {
-                    if let t = findFirstStaticText(in: win), let val = value(of: t) {
+                    if let textElem = findFirstStaticText(in: win), let val = value(of: textElem) {
                         return val
                     }
                 }
@@ -65,7 +68,11 @@ struct UIAXHelper {
         return nil
     }
 
-    static func findFirstElementByRole(in element: AXUIElement, as elementRole: String, timeout: TimeInterval = 5.0) -> AXUIElement? {
+    static func findFirstElementByRole(
+        in element: AXUIElement,
+        as elementRole: String,
+        timeout: TimeInterval = 5.0
+    ) -> AXUIElement? {
         if let role = role(of: element), role == elementRole as String {
             return element
         }
@@ -76,8 +83,12 @@ struct UIAXHelper {
         return nil
     }
 
-    static func findElementsByRole(in element: AXUIElement, as elementRole: String, timeout: TimeInterval = 5.0) -> Array<AXUIElement> {
-        var results = Array<AXUIElement>()
+    static func findElementsByRole(
+        in element: AXUIElement,
+        as elementRole: String,
+        timeout: TimeInterval = 5.0
+    ) -> [AXUIElement] {
+        var results = [AXUIElement]()
         if let role = role(of: element), role == elementRole as String {
             results.append(element)
         }
@@ -88,8 +99,8 @@ struct UIAXHelper {
         return results
     }
 
-    static func findAllStaticTextValue(in appElement: AXUIElement, timeout: TimeInterval = 5.0) -> Array<String?> {
-        var results = Array<String?>()
+    static func findAllStaticTextValue(in appElement: AXUIElement, timeout: TimeInterval = 5.0) -> [String?] {
+        var results = [String?]()
         let start = Date()
         while Date().timeIntervalSince(start) < timeout {
             if let windowsVal = axValue(of: appElement, attribute: kAXWindowsAttribute as CFString) as? [AXUIElement] {

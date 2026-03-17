@@ -15,7 +15,7 @@ struct SidebarView: View {
                     Text("3").font(.caption).foregroundColor(.secondary)
                 }
             }
-            
+
             Section("Lists") {
                 HStack {
                     Text("All")
@@ -28,7 +28,7 @@ struct SidebarView: View {
                     Text("277").font(.caption).foregroundColor(.secondary)
                 }
             }
-            
+
             Section("My Lists") {
                 Text("[01] This Week")
                 Text("[02] Next Week")
@@ -38,7 +38,7 @@ struct SidebarView: View {
                 Text("[06] Recurring")
                 Text("[07] Shopping...")
             }
-            
+
             Section("Other") {
                 Text("Inbox")
                 Text("Deck: Personal")

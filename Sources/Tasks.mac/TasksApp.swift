@@ -26,7 +26,7 @@ struct ContentView: View {
                     .foregroundColor(.orange)
             }
             .padding()
-            
+
             HStack {
                 Text("277 Completed")
                     .font(.caption)
@@ -40,12 +40,12 @@ struct ContentView: View {
             }
             .padding(.horizontal)
             .padding(.bottom)
-            
+
             Divider()
                 .opacity(0.2)
-            
+
             TaskListView()
-            
+
             Spacer()
         }
     }
