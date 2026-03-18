@@ -2,49 +2,42 @@ import SwiftUI
 
 @main
 struct TasksApp: App {
+    @StateObject private var store = TaskStore()
+
     var body: some Scene {
         WindowGroup {
             NavigationSplitView {
-                SidebarView()
+                SidebarView(store: store)
             } detail: {
-                ContentView()
+                ContentView(store: store)
+            }
+            .task {
+                await store.sync()
             }
         }
     }
 }
 
 struct ContentView: View {
+    @ObservedObject var store: TaskStore
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("[01] This Week")
+                Text(store.selectedCalendar?.displayName ?? "")
                     .font(.title2)
                     .fontWeight(.semibold)
                 Spacer()
-                Text("12")
+                Text("\(store.tasks.count)")
                     .font(.title2)
                     .foregroundColor(.orange)
             }
             .padding()
 
-            HStack {
-                Text("277 Completed")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Text("·")
-                    .foregroundColor(.secondary)
-                Text("Show")
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                Spacer()
-            }
-            .padding(.horizontal)
-            .padding(.bottom)
-
             Divider()
                 .opacity(0.2)
 
-            TaskListView()
+            TaskListView(tasks: $store.tasks)
 
             Spacer()
         }
