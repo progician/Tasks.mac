@@ -5,60 +5,12 @@ import Foundation
 import ApplicationServices
 
 class AcceptanceSpec: QuickSpec {
-    // swiftlint:disable:next function_body_length
     override func spec() {
-        func withAXApp(process: Process?, test: (AXUIElement) -> Void) {
-            guard AXIsProcessTrusted() else {
-                pending("Accessibility permission required to inspect UI") { }
-                return
-            }
-            guard let proc = process else { fail("Process not started"); return }
-            test(AXUIElementCreateApplication(proc.processIdentifier))
-        }
-
         describe("Main window") {
-            var process: Process!
-
-            func launchApp(execPath: String) -> Process? {
-                let newProcess = Process()
-                newProcess.executableURL = URL(fileURLWithPath: execPath)
-                newProcess.standardOutput = Pipe()
-                newProcess.standardError = Pipe()
-                do {
-                    try newProcess.run()
-                } catch {
-                    return nil
-                }
-                return newProcess
-            }
+            var process: Process?
 
             beforeEach {
-                if !AXIsProcessTrusted() {
-                    let message = "Accessibility permission required to run UI acceptance tests. " +
-                        "Grant access to the test runner (Terminal or Xcode) in " +
-                        "System Settings → Privacy & Security → Accessibility."
-                    pending(message) { }
-                    return
-                }
-
-                if let bundlePath = ProcessInfo.processInfo.environment["AT_BUNDLE_PATH"] {
-                    let execPath = bundlePath + "/Contents/MacOS/Tasks.mac"
-                    guard FileManager.default.fileExists(atPath: execPath) else {
-                        fail("Executable not built at \(execPath). " +
-                            "Run `swift build` before running tests or run tests via Xcode.")
-                        return
-                    }
-
-                    process = launchApp(execPath: execPath)
-                    if process == nil {
-                        fail("Cannot launch executable")
-                        return
-                    }
-
-                    try? await Task.sleep(nanoseconds: 200_000_000)
-                } else {
-                    fail("'AT_BUNDLE_PATH' environment variable must be set!")
-                }
+                process = launchApp()
             }
 
             afterEach {
@@ -69,58 +21,70 @@ class AcceptanceSpec: QuickSpec {
                 process = nil
             }
 
-            it("shows sidebar with list items") {
-                withAXApp(process: process) { appElement in
-                    let found = UIAXHelper.findAllStaticTextValue(in: appElement, timeout: 6.0)
-                    expect(found).to(contain("Today"))
-                    expect(found).to(contain("Scheduled"))
-                    expect(found).to(contain("All"))
-                    expect(found).to(contain("Completed"))
-                    expect(found).to(contain("[01] This Week"))
-                    expect(found).to(contain("[02] Next Week"))
+            it("shows the sidebar with navigation items and badges") {
+                guard AXIsProcessTrusted() else {
+                    pending("Accessibility permission required to inspect UI") { }
+                    return
                 }
+                guard let proc = process else {
+                    pending("AT_BUNDLE_PATH not set — run via `make test`") { }
+                    return
+                }
+
+                let appElement = AXUIElementCreateApplication(proc.processIdentifier)
+                guard let sidebar = UIAXHelper.findFirstElementByRole(
+                    in: appElement, as: kAXOutlineRole, timeout: 5.0
+                ) else {
+                    fail("Sidebar did not appear")
+                    return
+                }
+
+                let items = UIAXHelper.allStaticTextValues(within: sidebar)
+                expect(items).to(contain("Today"))
+                expect(items).to(contain("Scheduled"))
+                expect(items).to(contain("All"))
+                expect(items).to(contain("Completed"))
+                expect(items).to(contain("[01] This Week"))
+                expect(items).to(contain("[02] Next Week"))
+                // Badges
+                expect(items).to(contain("5"))
+                expect(items).to(contain("3"))
+                expect(items).to(contain("44"))
             }
 
-            it("shows content header with title and task count") {
-                withAXApp(process: process) { appElement in
-                    let found = UIAXHelper.findAllStaticTextValue(in: appElement, timeout: 6.0)
-                    expect(found).to(contain("[01] This Week"))
-                    expect(found).to(contain("12"))
-                    expect(found).to(contain("277 Completed"))
+            it("shows the content header with the active task list and count") {
+                guard AXIsProcessTrusted() else {
+                    pending("Accessibility permission required to inspect UI") { }
+                    return
                 }
+                guard let proc = process else {
+                    pending("AT_BUNDLE_PATH not set — run via `make test`") { }
+                    return
+                }
+
+                let appElement = AXUIElementCreateApplication(proc.processIdentifier)
+                let found = UIAXHelper.findAllStaticTextValue(in: appElement, timeout: 6.0)
+                expect(found).to(contain("[01] This Week"))
+                expect(found).to(contain("12"))
+                expect(found).to(contain("277 Completed"))
             }
 
-            it("shows task list with checkbox elements") {
-                withAXApp(process: process) { mainElement in
-                    let buttons = UIAXHelper.findElementsByRole(in: mainElement, as: kAXButtonRole)
-                    expect(buttons.count).to(beGreaterThan(0))
+            it("shows the task list with checkboxes and task items") {
+                guard AXIsProcessTrusted() else {
+                    pending("Accessibility permission required to inspect UI") { }
+                    return
                 }
-            }
+                guard let proc = process else {
+                    pending("AT_BUNDLE_PATH not set — run via `make test`") { }
+                    return
+                }
 
-            it("shows task with text content") {
-                withAXApp(process: process) { appElement in
-                    let found = UIAXHelper.findAllStaticTextValue(in: appElement, timeout: 6.0)
-                    expect(found).to(contain("Organize emails"))
-                }
-            }
+                let appElement = AXUIElementCreateApplication(proc.processIdentifier)
+                let buttons = UIAXHelper.findElementsByRole(in: appElement, as: kAXButtonRole, timeout: 5.0)
+                expect(buttons.count).to(beGreaterThan(0))
 
-            it("has a sidebar") {
-                withAXApp(process: process) { mainElement in
-                    let sidebarElem = UIAXHelper.findFirstElementByRole(in: mainElement, as: kAXOutlineRole)
-                    expect(sidebarElem).notTo(beNil())
-                }
-            }
-
-            it("shows sidebar item count badges") {
-                withAXApp(process: process) { appElement in
-                    let found = UIAXHelper.findAllStaticTextValue(in: appElement, timeout: 6.0)
-                    expect(found).to(contain("Today"))
-                    expect(found).to(contain("5"))
-                    expect(found).to(contain("Scheduled"))
-                    expect(found).to(contain("3"))
-                    expect(found).to(contain("All"))
-                    expect(found).to(contain("44"))
-                }
+                let found = UIAXHelper.findAllStaticTextValue(in: appElement, timeout: 5.0)
+                expect(found).to(contain("Organize emails"))
             }
         }
     }

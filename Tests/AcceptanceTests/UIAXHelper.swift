@@ -73,14 +73,31 @@ struct UIAXHelper {
         as elementRole: String,
         timeout: TimeInterval = 5.0
     ) -> AXUIElement? {
-        if let role = role(of: element), role == elementRole as String {
-            return element
-        }
-        for child in children(of: element) {
-            if let found = findFirstElementByRole(in: child, as: elementRole) { return found }
-        }
-
+        let start = Date()
+        repeat {
+            if let found = findFirstElementByRoleSync(in: element, as: elementRole) { return found }
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
+        } while Date().timeIntervalSince(start) < timeout
         return nil
+    }
+
+    private static func findFirstElementByRoleSync(
+        in element: AXUIElement,
+        as elementRole: String
+    ) -> AXUIElement? {
+        if role(of: element) == elementRole { return element }
+        for child in children(of: element) {
+            if let found = findFirstElementByRoleSync(in: child, as: elementRole) { return found }
+        }
+        return nil
+    }
+
+    /// Returns all static text values reachable from `element` without any
+    /// timeout polling.  Suitable for asserting within a container element
+    /// that is already known to exist.
+    static func allStaticTextValues(within element: AXUIElement) -> [String] {
+        return findElementsByRole(in: element, as: kAXStaticTextRole)
+            .compactMap { value(of: $0) }
     }
 
     static func findElementsByRole(

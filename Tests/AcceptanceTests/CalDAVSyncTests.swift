@@ -15,26 +15,6 @@ class CalDAVSyncSpec: QuickSpec {
             let fakeServer = FakeCalDAVServer()
             var process: Process?
 
-            func launchApp(calDAVURL: URL) -> Process? {
-                guard let bundlePath = ProcessInfo.processInfo.environment["AT_BUNDLE_PATH"] else {
-                    return nil
-                }
-                let execPath = bundlePath + "/Contents/MacOS/Tasks.mac"
-                guard FileManager.default.fileExists(atPath: execPath) else { return nil }
-
-                let proc = Process()
-                proc.executableURL = URL(fileURLWithPath: execPath)
-                // Merge the CalDAV URL into the environment so the app knows
-                // which server to sync with.  The app reads CALDAV_URL on startup.
-                proc.environment = ProcessInfo.processInfo.environment.merging([
-                    "CALDAV_URL": calDAVURL.absoluteString,
-                ]) { _, new in new }
-                proc.standardOutput = Pipe()
-                proc.standardError  = Pipe()
-                try? proc.run()
-                return proc
-            }
-
             beforeEach {
                 try? fakeServer.start()
                 try? fakeServer.reset()
@@ -61,7 +41,7 @@ class CalDAVSyncSpec: QuickSpec {
 
                 _ = try? fakeServer.addTask(summary: "Buy groceries")
 
-                process = launchApp(calDAVURL: fakeServer.calDAVURL)
+                process = launchApp(environment: ["CALDAV_URL": fakeServer.calDAVURL.absoluteString])
                 guard process != nil else {
                     fail("Could not launch the app")
                     return
