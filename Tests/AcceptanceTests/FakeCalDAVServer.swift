@@ -46,7 +46,7 @@ final class FakeCalDAVServer {
         proc.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         proc.arguments = [
             "python3", scriptURL.path,
-            "--port",       "\(FakeCalDAVServer.calDAVPort)",
+            "--port", "\(FakeCalDAVServer.calDAVPort)",
             "--admin-port", "\(FakeCalDAVServer.adminPort)",
         ]
         proc.standardOutput = FileHandle.nullDevice
@@ -140,6 +140,6 @@ enum FakeCalDAVError: Error {
 // Simple reference-type box to avoid Sendable capture warnings when bridging
 // URLSession callbacks back to synchronous callers via a semaphore.
 private final class ResultBox: @unchecked Sendable {
-    var data:  Data        = Data()
+    var data: Data = Data()
     var error: (any Error)?
 }

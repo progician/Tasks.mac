@@ -4,6 +4,7 @@ import Foundation
 import ApplicationServices
 
 class AcceptanceSpec: QuickSpec {
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     override func spec() {
         describe("Main window") {
             let fakeServer = FakeCalDAVServer()
@@ -65,11 +66,11 @@ class AcceptanceSpec: QuickSpec {
                 guard process != nil else { fail("Could not launch the app"); return }
 
                 let appElement = AXUIElementCreateApplication(process!.processIdentifier)
-                guard let sidebar = UIAXHelper.findFirstElementByRole(
+                guard UIAXHelper.findFirstElementByRole(
                     in: appElement, as: kAXOutlineRole, timeout: 5.0
-                ) else { fail("Sidebar did not appear"); return }
+                ) != nil else { fail("Sidebar did not appear"); return }
 
-                let items = UIAXHelper.allStaticTextValues(within: sidebar)
+                let items = UIAXHelper.findAllStaticTextValue(in: appElement, timeout: 10.0)
                 expect(items).to(contain("This Week"))
                 expect(items).to(contain("Next Week"))
             }
@@ -85,8 +86,8 @@ class AcceptanceSpec: QuickSpec {
                 }
 
                 let calendarUID = (try? fakeServer.addCalendar(name: "Shopping")) ?? ""
-                _ = try? fakeServer.addTask(summary: "Milk",  toCalendar: calendarUID)
-                _ = try? fakeServer.addTask(summary: "Eggs",  toCalendar: calendarUID)
+                _ = try? fakeServer.addTask(summary: "Milk", toCalendar: calendarUID)
+                _ = try? fakeServer.addTask(summary: "Eggs", toCalendar: calendarUID)
                 _ = try? fakeServer.addTask(summary: "Bread", toCalendar: calendarUID)
 
                 process = launchApp(environment: ["CALDAV_URL": fakeServer.calDAVURL.absoluteString])

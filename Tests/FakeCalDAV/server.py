@@ -26,7 +26,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
 
-CALENDAR_USER = "tasks-test"
+CALENDAR_USER = ""  # Radicale with auth=none uses an empty username; collections sit at the root
 
 VTODO_TEMPLATE = """\
 BEGIN:VCALENDAR
@@ -61,11 +61,13 @@ class Storage:
 
     @property
     def user_dir(self) -> Path:
-        return self.base / "collection-root" / CALENDAR_USER
+        # With an empty username, Python's pathlib drops the empty component,
+        # so collections sit directly under collection-root/ and Radicale
+        # serves them at /<uid>/ with no user-prefix in the URL.
+        return self.base / "collection-root"
 
     def _init_collections(self) -> None:
         self.user_dir.mkdir(parents=True, exist_ok=True)
-        _write_props(self.user_dir, {"D:displayname": CALENDAR_USER})
 
     def add_calendar(self, name: str, uid: str) -> None:
         cal_dir = self.user_dir / uid
@@ -107,11 +109,29 @@ def _write_props(directory: Path, props: dict) -> None:
 
 def make_radicale_config(storage_dir: Path, caldav_port: int) -> Path:
     config_path = storage_dir / "radicale.conf"
+    rights_path = storage_dir / "rights"
+    # Grant all rights to every path for any (or no) user.
+    # The default "owner_only" and "authenticated" modules key calendar access
+    # on path depth (requires exactly one "/" in the sanitised path), which
+    # means flat single-level calendar paths — e.g. /calendar-uid/ — are
+    # treated as top-level principal collections and only receive uppercase
+    # RW rights, not the lowercase rw rights that Radicale requires before it
+    # will expose tagged calendar collections.  A permissive "from_file" rule
+    # sidesteps that logic entirely.
+    rights_path.write_text(
+        "[allow-all]\n"
+        "user = .*\n"
+        "collection = .*\n"
+        "permissions = RrWw\n"
+    )
     config_path.write_text(
         f"[server]\n"
         f"hosts = localhost:{caldav_port}\n\n"
         f"[auth]\n"
         f"type = none\n\n"
+        f"[rights]\n"
+        f"type = from_file\n"
+        f"file = {rights_path}\n\n"
         f"[storage]\n"
         f"filesystem_folder = {storage_dir}\n\n"
         f"[logging]\n"

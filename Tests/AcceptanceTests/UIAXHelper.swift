@@ -96,7 +96,7 @@ struct UIAXHelper {
     /// timeout polling.  Suitable for asserting within a container element
     /// that is already known to exist.
     static func allStaticTextValues(within element: AXUIElement) -> [String] {
-        return findElementsByRole(in: element, as: kAXStaticTextRole)
+        return findElementsByRoleSync(in: element, as: kAXStaticTextRole)
             .compactMap { value(of: $0) }
     }
 
@@ -105,13 +105,23 @@ struct UIAXHelper {
         as elementRole: String,
         timeout: TimeInterval = 5.0
     ) -> [AXUIElement] {
+        let start = Date()
+        repeat {
+            let results = findElementsByRoleSync(in: element, as: elementRole)
+            if !results.isEmpty { return results }
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
+        } while Date().timeIntervalSince(start) < timeout
+        return []
+    }
+
+    private static func findElementsByRoleSync(
+        in element: AXUIElement,
+        as elementRole: String
+    ) -> [AXUIElement] {
         var results = [AXUIElement]()
-        if let role = role(of: element), role == elementRole as String {
-            results.append(element)
-        }
+        if role(of: element) == elementRole { results.append(element) }
         for child in children(of: element) {
-            let found = findElementsByRole(in: child, as: elementRole, timeout: timeout)
-            results.append(contentsOf: found)
+            results.append(contentsOf: findElementsByRoleSync(in: child, as: elementRole))
         }
         return results
     }
