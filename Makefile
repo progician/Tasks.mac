@@ -46,5 +46,8 @@ test: bundle $(XCTEST_EXECUTABLE) fake-caldav-deps
 	PATH="$(abspath $(FAKE_CALDAV_PATH)/.venv/bin):$(PATH)" \
 	swift test --skip-build
 
+test-units:
+	swift test --filter Tasks_mac_ut
+
 lint:
 	swiftlint lint

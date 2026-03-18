@@ -16,7 +16,21 @@ let package = Package(
         .package(url: "https://github.com/Quick/Nimble.git", from: "11.0.0"),
     ],
     targets: [
-        .executableTarget(name: "Tasks.mac", path: "Sources/Tasks.mac"),
+        .target(name: "TasksCore", path: "Sources/TasksCore"),
+        .executableTarget(
+            name: "Tasks.mac",
+            dependencies: ["TasksCore"],
+            path: "Sources/Tasks.mac"
+        ),
+        .testTarget(
+            name: "Tasks.mac.ut",
+            dependencies: [
+                "TasksCore",
+                .product(name: "Quick", package: "Quick"),
+                .product(name: "Nimble", package: "Nimble"),
+            ],
+            path: "Tests/UnitTests"
+        ),
         .testTarget(
             name: "Tasks.mac.at",
             dependencies: [
