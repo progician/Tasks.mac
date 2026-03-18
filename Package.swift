@@ -23,7 +23,8 @@ let package = Package(
                 "Tasks.mac",
                 .product(name: "Quick", package: "Quick"),
                 .product(name: "Nimble", package: "Nimble"),
-            ]
+            ],
+            path: "Tests/AcceptanceTests"
         ),
     ]
 )

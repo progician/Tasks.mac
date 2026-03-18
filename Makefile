@@ -5,6 +5,7 @@ BUNDLE_CONTENTS_PATH := $(BUNDLE_PATH)/Contents
 BUNDLE_BIN_PATH := $(BUNDLE_CONTENTS_PATH)/MacOS
 
 ACCEPTANCE_TEST_PATH := ./Tests/AcceptanceTests
+FAKE_CALDAV_PATH := ./Tests/FakeCalDAV
 XCTEST_BUNDLE := $(BUILD_BIN_PATH)/Tasks.macPackageTests.xctest
 XCTEST_EXECUTABLE := $(XCTEST_BUNDLE)/Contents/MacOS/Tasks.macPackageTests
 
@@ -26,12 +27,22 @@ app-in-bundle: $(BUNDLE_BIN_PATH)/$(EXECUTABLE_NAME)
 plist-in-bundle: $(BUNDLE_CONTENTS_PATH)/Info.plist
 
 bundle: app-in-bundle plist-in-bundle
+	codesign --force --sign - $(BUNDLE_PATH)
 
-$(XCTEST_EXECUTABLE): $(ACCEPTANCE_TEST_PATH)/AcceptanceTests.swift $(ACCEPTANCE_TEST_PATH)/UIAXHelper.swift
+$(FAKE_CALDAV_PATH)/.venv/bin/radicale: $(FAKE_CALDAV_PATH)/requirements.txt
+	python3 -m venv $(FAKE_CALDAV_PATH)/.venv
+	$(FAKE_CALDAV_PATH)/.venv/bin/pip install -q -r $(FAKE_CALDAV_PATH)/requirements.txt
+
+fake-caldav-deps: $(FAKE_CALDAV_PATH)/.venv/bin/radicale
+
+$(XCTEST_EXECUTABLE): $(ACCEPTANCE_TEST_PATH)/AcceptanceTests.swift $(ACCEPTANCE_TEST_PATH)/UIAXHelper.swift \
+	$(ACCEPTANCE_TEST_PATH)/FakeCalDAVServer.swift $(ACCEPTANCE_TEST_PATH)/CalDAVSyncTests.swift
 	swift build --build-tests
 
-test: bundle $(XCTEST_EXECUTABLE)
-	AT_BUNDLE_PATH=$(BUNDLE_PATH) swift test --skip-build
+test: bundle $(XCTEST_EXECUTABLE) fake-caldav-deps
+	AT_BUNDLE_PATH=$(BUNDLE_PATH) \
+	PATH="$(abspath $(FAKE_CALDAV_PATH)/.venv/bin):$(PATH)" \
+	swift test --skip-build
 
 lint:
 	swiftlint lint
