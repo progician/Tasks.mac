@@ -36,7 +36,7 @@ $(FAKE_CALDAV_PATH)/.venv/bin/radicale: $(FAKE_CALDAV_PATH)/requirements.txt
 fake-caldav-deps: $(FAKE_CALDAV_PATH)/.venv/bin/radicale
 
 $(XCTEST_EXECUTABLE): $(ACCEPTANCE_TEST_PATH)/AcceptanceTests.swift $(ACCEPTANCE_TEST_PATH)/UIAXHelper.swift \
-	$(ACCEPTANCE_TEST_PATH)/FakeCalDAVServer.swift $(ACCEPTANCE_TEST_PATH)/CalDAVSyncTests.swift
+	$(ACCEPTANCE_TEST_PATH)/FakeCalDAVServer.swift $(ACCEPTANCE_TEST_PATH)/AppLauncher.swift
 	swift build --build-tests
 
 test: bundle $(XCTEST_EXECUTABLE) fake-caldav-deps

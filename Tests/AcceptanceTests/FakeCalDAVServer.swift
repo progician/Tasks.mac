@@ -27,11 +27,7 @@ final class FakeCalDAVServer {
         URL(string: "http://localhost:\(FakeCalDAVServer.calDAVPort)")!
     }
 
-    /// The path of the tasks calendar collection on the CalDAV server.
-    var tasksCollectionPath: String { "/\(calendarUser)/\(calendarName)/" }
-
     private let calendarUser = "tasks-test"
-    private let calendarName = "tasks"
     private var process: Process?
 
     // Resolved at compile time — robust as long as the project layout is stable.
@@ -68,17 +64,29 @@ final class FakeCalDAVServer {
 
     // MARK: - Test data control (admin back door)
 
-    /// Removes all tasks from the fake server.
+    /// Removes all calendars and tasks, restoring the server to a clean state.
     func reset() throws {
         try admin(method: "POST", path: "/reset")
     }
 
-    /// Adds a single VTODO item to the fake server's task calendar.
+    /// Creates a named calendar on the fake server.
     ///
+    /// - Returns: The UID that identifies the calendar (use it when adding tasks).
+    @discardableResult
+    func addCalendar(name: String, uid: String = UUID().uuidString) throws -> String {
+        let body: [String: String] = ["name": name, "uid": uid]
+        let data = try admin(method: "POST", path: "/calendars", body: body)
+        let response = try JSONDecoder().decode([String: String].self, from: data)
+        return response["uid"] ?? uid
+    }
+
+    /// Adds a single VTODO item to a named calendar on the fake server.
+    ///
+    /// - Parameter toCalendar: The UID returned by `addCalendar`.
     /// - Returns: The UID of the created task.
     @discardableResult
-    func addTask(uid: String = UUID().uuidString, summary: String) throws -> String {
-        let body: [String: String] = ["uid": uid, "summary": summary]
+    func addTask(uid: String = UUID().uuidString, summary: String, toCalendar calendarUID: String) throws -> String {
+        let body: [String: String] = ["uid": uid, "summary": summary, "calendar": calendarUID]
         let data = try admin(method: "POST", path: "/tasks", body: body)
         let response = try JSONDecoder().decode([String: String].self, from: data)
         return response["uid"] ?? uid

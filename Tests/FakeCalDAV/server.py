@@ -8,13 +8,15 @@ Usage:
     python3 server.py [--port PORT] [--admin-port PORT] [--storage-dir DIR]
 
 Admin API (default port 5233):
-    GET  /health   — Health check, returns {"status": "ok"}
-    POST /tasks    — Add a VTODO task, body: {"uid": "...", "summary": "..."}
-    GET  /tasks    — List all task UIDs
-    POST /reset    — Delete all tasks
+    GET  /health      — Health check, returns {"status": "ok"}
+    POST /calendars   — Create a named calendar, body: {"name": "...", "uid": "..."}
+    POST /tasks       — Add a VTODO, body: {"uid": "...", "summary": "...", "calendar": "<uid>"}
+    GET  /tasks       — List all task UIDs across all calendars
+    POST /reset       — Delete all calendars and tasks, restore initial state
 """
 import argparse
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -25,7 +27,6 @@ from pathlib import Path
 
 
 CALENDAR_USER = "tasks-test"
-CALENDAR_NAME = "tasks"
 
 VTODO_TEMPLATE = """\
 BEGIN:VCALENDAR
@@ -47,7 +48,7 @@ class Storage:
     Radicale's filesystem backend stores each calendar object as a plain .ics
     file inside a directory hierarchy:
 
-        <base>/collection-root/<user>/<calendar>/<uid>.ics
+        <base>/collection-root/<user>/<calendar-uid>/<task-uid>.ics
 
     Collection metadata lives in .Radicale.props JSON files alongside
     the items. Writing files while Radicale is running is safe because
@@ -59,40 +60,49 @@ class Storage:
         self._init_collections()
 
     @property
-    def tasks_dir(self) -> Path:
-        return self.base / "collection-root" / CALENDAR_USER / CALENDAR_NAME
+    def user_dir(self) -> Path:
+        return self.base / "collection-root" / CALENDAR_USER
 
     def _init_collections(self) -> None:
-        user_dir = self.base / "collection-root" / CALENDAR_USER
-        user_dir.mkdir(parents=True, exist_ok=True)
-        _write_props_if_missing(user_dir, {"D:displayname": CALENDAR_USER})
+        self.user_dir.mkdir(parents=True, exist_ok=True)
+        _write_props(self.user_dir, {"D:displayname": CALENDAR_USER})
 
-        self.tasks_dir.mkdir(exist_ok=True)
-        _write_props_if_missing(self.tasks_dir, {
+    def add_calendar(self, name: str, uid: str) -> None:
+        cal_dir = self.user_dir / uid
+        cal_dir.mkdir(parents=True, exist_ok=True)
+        _write_props(cal_dir, {
             "D:resourcetype": (
                 "{urn:ietf:params:xml:ns:caldav}calendar {DAV:}collection"
             ),
-            "D:displayname": "Tasks",
+            "D:displayname": name,
             "tag": "VCALENDAR",
         })
 
-    def add(self, uid: str, summary: str) -> None:
+    def add_task(self, uid: str, summary: str, calendar_uid: str) -> None:
+        cal_dir = self.user_dir / calendar_uid
+        if not cal_dir.exists():
+            raise ValueError(f"Calendar '{calendar_uid}' does not exist")
         dtstamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         ics = VTODO_TEMPLATE.format(uid=uid, summary=summary, dtstamp=dtstamp)
-        (self.tasks_dir / f"{uid}.ics").write_text(ics)
+        (cal_dir / f"{uid}.ics").write_text(ics)
 
-    def list(self) -> list:
-        return [f.stem for f in self.tasks_dir.glob("*.ics")]
+    def list_tasks(self) -> list:
+        tasks = []
+        for cal_dir in self.user_dir.iterdir():
+            if cal_dir.is_dir():
+                tasks.extend(f.stem for f in cal_dir.glob("*.ics"))
+        return tasks
 
     def reset(self) -> None:
-        for f in self.tasks_dir.glob("*.ics"):
-            f.unlink()
+        """Wipe all calendars and tasks, then restore the bare user collection."""
+        collection_root = self.base / "collection-root"
+        if collection_root.exists():
+            shutil.rmtree(collection_root)
+        self._init_collections()
 
 
-def _write_props_if_missing(directory: Path, props: dict) -> None:
-    props_file = directory / ".Radicale.props"
-    if not props_file.exists():
-        props_file.write_text(json.dumps(props))
+def _write_props(directory: Path, props: dict) -> None:
+    (directory / ".Radicale.props").write_text(json.dumps(props))
 
 
 def make_radicale_config(storage_dir: Path, caldav_port: int) -> Path:
@@ -120,16 +130,30 @@ class AdminHandler(BaseHTTPRequestHandler):
         if self.path == "/health":
             self._json(200, {"status": "ok"})
         elif self.path == "/tasks":
-            self._json(200, self.storage.list())
+            self._json(200, self.storage.list_tasks())
         else:
             self._json(404, {"error": "not found"})
 
     def do_POST(self):  # noqa: N802
-        if self.path == "/tasks":
+        if self.path == "/calendars":
             body = self._read_body()
-            uid = body.get("uid", str(uuid.uuid4()))
-            summary = body.get("summary", "Test Task")
-            self.storage.add(uid, summary)
+            name = body.get("name", "Unnamed")
+            uid  = body.get("uid", str(uuid.uuid4()))
+            self.storage.add_calendar(name, uid)
+            self._json(201, {"uid": uid, "name": name})
+        elif self.path == "/tasks":
+            body     = self._read_body()
+            uid      = body.get("uid", str(uuid.uuid4()))
+            summary  = body.get("summary", "Test Task")
+            calendar = body.get("calendar")
+            if not calendar:
+                self._json(400, {"error": "calendar uid required"})
+                return
+            try:
+                self.storage.add_task(uid, summary, calendar)
+            except ValueError as exc:
+                self._json(404, {"error": str(exc)})
+                return
             self._json(201, {"uid": uid})
         elif self.path == "/reset":
             self.storage.reset()
