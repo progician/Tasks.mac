@@ -11,15 +11,16 @@ class AcceptanceSpec: QuickSpec {
             var process: Process?
             var appElement: AXUIElement?
 
+            guard AXIsProcessTrusted() else {
+                fail("Accessibility permission required to inspect UI")
+                return
+            }
+            guard ProcessInfo.processInfo.environment["AT_BUNDLE_PATH"] != nil else {
+                fail("AT_BUNDLE_PATH not set — run via `make test`")
+                return
+            }
+
             beforeEach {
-                guard AXIsProcessTrusted() else {
-                    pending("Accessibility permission required to inspect UI") { }
-                    return
-                }
-                guard ProcessInfo.processInfo.environment["AT_BUNDLE_PATH"] != nil else {
-                    pending("AT_BUNDLE_PATH not set — run via `make test`") { }
-                    return
-                }
                 try? fakeServer.start()
                 try? fakeServer.reset()
             }
@@ -91,7 +92,7 @@ class AcceptanceSpec: QuickSpec {
                 expect(found).to(contain("Buy groceries"))
             }
 
-            xit("shows the calendar name as a task list name on the sidebar") {
+            it("shows the calendar name as a task list name on the sidebar") {
                 let CALENDAR_NAME_AS_TASK_LIST_NAME = "Calendar Name To Capture"
                 try! fakeServer.addCalendar(name: CALENDAR_NAME_AS_TASK_LIST_NAME)
                 guard let app = launch() else { return }
