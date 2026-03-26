@@ -1,5 +1,9 @@
 import Foundation
 
+public enum CalDAVError: Error {
+    case authenticationRequired
+}
+
 public struct CalDAVCalendar: Identifiable {
     public let id: String          // href, e.g. "/this-week-uid/"
     public let displayName: String
@@ -100,8 +104,17 @@ public struct CalDAVClient: Sendable {
         request.setValue("application/xml; charset=utf-8", forHTTPHeaderField: "Content-Type")
         request.setValue(depth, forHTTPHeaderField: "Depth")
         request.httpBody = body.data(using: .utf8)
-        let (data, _) = try await http.data(for: request)
-        return data
+        do {
+            let (data, response) = try await http.data(for: request)
+            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 401 {
+                throw CalDAVError.authenticationRequired
+            }
+            return data
+        } catch let urlError as URLError
+            where urlError.code == .userAuthenticationRequired
+               || urlError.code == .userCancelledAuthentication {
+            throw CalDAVError.authenticationRequired
+        }
     }
 
     private func calendarQuery(url: URL) async throws -> Data {

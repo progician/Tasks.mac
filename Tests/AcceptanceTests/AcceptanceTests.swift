@@ -114,7 +114,7 @@ class AcceptanceSpec: QuickSpec {
                     try! fakeServer.setupCredentials(user: "foo", password: "bar")
                 }
 
-                xit("shows an error status in the status message area") {
+                it("shows an error status in the status message area") {
                     guard let app = launch() else { return }
                     guard let statusMessagePanel = UIAXHelper.findElementById(in: app, id: "statusMessages") else {
                         fail("Could not find status message panel")
