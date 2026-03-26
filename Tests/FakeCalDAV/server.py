@@ -19,6 +19,7 @@ import argparse
 import base64
 import json
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -166,6 +167,7 @@ class RadicaleController:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
+        self._wait_until_ready()
 
     def stop(self) -> None:
         self._stop_sentinel()
@@ -342,6 +344,12 @@ def main() -> None:
     storage = Storage(storage_dir)
     radicale = RadicaleController(storage_dir, args.port)
     radicale.start()
+
+    def _on_sigterm(signum, frame):
+        radicale.stop()
+        raise SystemExit(0)
+
+    signal.signal(signal.SIGTERM, _on_sigterm)
 
     print(f"CalDAV: http://localhost:{args.port}/", file=sys.stderr, flush=True)
     print(f"Admin:  http://localhost:{args.admin_port}/", file=sys.stderr, flush=True)
