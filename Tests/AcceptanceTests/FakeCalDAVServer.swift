@@ -43,12 +43,21 @@ final class FakeCalDAVServer {
 
     func start() throws {
         let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        proc.arguments = [
-            "python3", scriptURL.path,
-            "--port", "\(FakeCalDAVServer.calDAVPort)",
-            "--admin-port", "\(FakeCalDAVServer.adminPort)",
-        ]
+        if let python3 = ProcessInfo.processInfo.environment["AT_PYTHON_PATH"] {
+            proc.executableURL = URL(fileURLWithPath: python3)
+            proc.arguments = [
+                scriptURL.path,
+                "--port", "\(FakeCalDAVServer.calDAVPort)",
+                "--admin-port", "\(FakeCalDAVServer.adminPort)",
+            ]
+        } else {
+            proc.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+            proc.arguments = [
+                "python3", scriptURL.path,
+                "--port", "\(FakeCalDAVServer.calDAVPort)",
+                "--admin-port", "\(FakeCalDAVServer.adminPort)",
+            ]
+        }
         proc.standardOutput = FileHandle.nullDevice
         proc.standardError  = FileHandle.nullDevice
         try proc.run()
