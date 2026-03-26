@@ -93,6 +93,24 @@ class AcceptanceSpec: QuickSpec {
                 let found = UIAXHelper.findAllStaticTextValue(in: app, timeout: 5.0)
                 expect(found).to(contain("Buy groceries"))
             }
+
+            it("shows the calendar name as a task list name on the sidebar") {
+                let CALENDAR_NAME_AS_TASK_LIST_NAME = "Calendar Name To Capture"
+                try! fakeServer.addCalendar(name: CALENDAR_NAME_AS_TASK_LIST_NAME)
+                launch()
+                guard let app = appElement else {
+                    fail("Couldn't launch app or windows hasn't openned")
+                    return
+                }
+
+                guard let sidebar = UIAXHelper.findFirstElementByRole(in: app, as: kAXOutlineRole) else {
+                    fail("Cannot find side bar")
+                    return
+                }
+
+                let sidebarItems = UIAXHelper.allStaticTextValues(within: sidebar)
+                expect(sidebarItems).to(contain(CALENDAR_NAME_AS_TASK_LIST_NAME))
+            }
         }
     }
 }
