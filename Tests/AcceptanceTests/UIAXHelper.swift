@@ -126,6 +126,34 @@ struct UIAXHelper {
         return results
     }
 
+    /// Finds the first element whose `AXIdentifier` attribute matches `id`,
+    /// analogous to `document.getElementById` in HTML.
+    ///
+    /// The identifier is set in SwiftUI via `.accessibilityIdentifier("...")`.
+    static func findElementById(
+        in element: AXUIElement,
+        id: String,
+        timeout: TimeInterval = 5.0
+    ) -> AXUIElement? {
+        let start = Date()
+        repeat {
+            if let found = findElementByIdSync(in: element, id: id) { return found }
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
+        } while Date().timeIntervalSince(start) < timeout
+        return nil
+    }
+
+    private static func findElementByIdSync(in element: AXUIElement, id: String) -> AXUIElement? {
+        if let identifier = axValue(of: element, attribute: kAXIdentifierAttribute as CFString) as? String,
+           identifier == id {
+            return element
+        }
+        for child in children(of: element) {
+            if let found = findElementByIdSync(in: child, id: id) { return found }
+        }
+        return nil
+    }
+
     static func findAllStaticTextValue(in appElement: AXUIElement, timeout: TimeInterval = 5.0) -> [String?] {
         var results = [String?]()
         let start = Date()
