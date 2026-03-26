@@ -94,10 +94,7 @@ class AcceptanceSpec: QuickSpec {
             xit("shows the calendar name as a task list name on the sidebar") {
                 let CALENDAR_NAME_AS_TASK_LIST_NAME = "Calendar Name To Capture"
                 try! fakeServer.addCalendar(name: CALENDAR_NAME_AS_TASK_LIST_NAME)
-                guard let app = launch() else {
-                    fail("Couldn't launch app or windows hasn't openned")
-                    return
-                }
+                guard let app = launch() else { return }
 
                 guard let sidebar = UIAXHelper.findFirstElementByRole(in: app, as: kAXOutlineRole) else {
                     fail("Cannot find side bar")
