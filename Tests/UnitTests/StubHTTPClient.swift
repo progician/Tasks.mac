@@ -5,7 +5,7 @@ import TasksCore
 /// Tests can inspect `requests` to verify what the client sent.
 final class StubHTTPClient: HTTPClient, @unchecked Sendable {
     private(set) var requests: [URLRequest] = []
-    private var queue: [(Data, URLResponse)] = []
+    private var queue: [Result<(Data, URLResponse), Error>] = []
 
     func enqueue(xml: String, statusCode: Int = 207) {
         let response = HTTPURLResponse(
@@ -14,7 +14,11 @@ final class StubHTTPClient: HTTPClient, @unchecked Sendable {
             httpVersion: nil,
             headerFields: nil
         )!
-        queue.append((Data(xml.utf8), response))
+        queue.append(.success((Data(xml.utf8), response)))
+    }
+
+    func enqueueError(_ error: Error) {
+        queue.append(.failure(error))
     }
 
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
@@ -22,6 +26,6 @@ final class StubHTTPClient: HTTPClient, @unchecked Sendable {
         guard !queue.isEmpty else {
             throw URLError(.resourceUnavailable)
         }
-        return queue.removeFirst()
+        return try queue.removeFirst().get()
     }
 }

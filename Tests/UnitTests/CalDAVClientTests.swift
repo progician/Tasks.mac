@@ -154,6 +154,39 @@ final class CalDAVClientSpec: QuickSpec {
                 }
             }
 
+            context("when the server responds with 401 Unauthorized") {
+                it("throws authenticationRequired") {
+                    // First PROPFIND (discovery) falls back silently on 401;
+                    // the second PROPFIND (listing at baseURL) surfaces the error.
+                    stub.enqueue(xml: "", statusCode: 401)
+                    stub.enqueue(xml: "", statusCode: 401)
+
+                    await expect {
+                        try await CalDAVClient(baseURL: base, http: stub).discoverCalendars()
+                    }.to(throwError(CalDAVError.authenticationRequired))
+                }
+            }
+
+            context("when the HTTP client throws a URLError indicating auth failure") {
+                it("throws authenticationRequired for userAuthenticationRequired") {
+                    stub.enqueueError(URLError(.userAuthenticationRequired))
+                    stub.enqueueError(URLError(.userAuthenticationRequired))
+
+                    await expect {
+                        try await CalDAVClient(baseURL: base, http: stub).discoverCalendars()
+                    }.to(throwError(CalDAVError.authenticationRequired))
+                }
+
+                it("throws authenticationRequired for userCancelledAuthentication") {
+                    stub.enqueueError(URLError(.userCancelledAuthentication))
+                    stub.enqueueError(URLError(.userCancelledAuthentication))
+
+                    await expect {
+                        try await CalDAVClient(baseURL: base, http: stub).discoverCalendars()
+                    }.to(throwError(CalDAVError.authenticationRequired))
+                }
+            }
+
             context("when neither home-set nor principal is present") {
                 it("falls back to listing the base URL directly") {
                     stub.enqueue(xml: emptyMultistatus)
