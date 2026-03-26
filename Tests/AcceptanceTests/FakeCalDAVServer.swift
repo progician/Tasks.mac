@@ -78,6 +78,15 @@ final class FakeCalDAVServer {
         try admin(method: "POST", path: "/reset")
     }
 
+    /// Configures the CalDAV server to require HTTP Basic authentication (RFC 7617).
+    ///
+    /// After this call, requests without valid credentials will receive a 401 response.
+    /// The server is restarted internally to apply the new auth configuration.
+    func setupCredentials(user: String, password: String) throws {
+        let body: [String: String] = ["user": user, "password": password]
+        try admin(method: "POST", path: "/credentials", body: body)
+    }
+
     /// Creates a named calendar on the fake server.
     ///
     /// - Returns: The UID that identifies the calendar (use it when adding tasks).

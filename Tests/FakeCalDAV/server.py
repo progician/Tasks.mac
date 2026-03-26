@@ -13,20 +13,22 @@ Admin API (default port 5233):
     POST /tasks       — Add a VTODO, body: {"uid": "...", "summary": "...", "calendar": "<uid>"}
     GET  /tasks       — List all task UIDs across all calendars
     POST /reset       — Delete all calendars and tasks, restore initial state
+    POST /credentials — Require HTTP Basic Auth, body: {"user": "...", "password": "..."}
 """
 import argparse
+import base64
 import json
 import shutil
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 import uuid
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
-
-CALENDAR_USER = ""  # Radicale with auth=none uses an empty username; collections sit at the root
 
 VTODO_TEMPLATE = """\
 BEGIN:VCALENDAR
@@ -107,41 +109,161 @@ def _write_props(directory: Path, props: dict) -> None:
     (directory / ".Radicale.props").write_text(json.dumps(props))
 
 
-def make_radicale_config(storage_dir: Path, caldav_port: int) -> Path:
-    config_path = storage_dir / "radicale.conf"
-    rights_path = storage_dir / "rights"
-    # Grant all rights to every path for any (or no) user.
-    # The default "owner_only" and "authenticated" modules key calendar access
-    # on path depth (requires exactly one "/" in the sanitised path), which
-    # means flat single-level calendar paths — e.g. /calendar-uid/ — are
-    # treated as top-level principal collections and only receive uppercase
-    # RW rights, not the lowercase rw rights that Radicale requires before it
-    # will expose tagged calendar collections.  A permissive "from_file" rule
-    # sidesteps that logic entirely.
-    rights_path.write_text(
-        "[allow-all]\n"
-        "user = .*\n"
-        "collection = .*\n"
-        "permissions = RrWw\n"
-    )
-    config_path.write_text(
-        f"[server]\n"
-        f"hosts = localhost:{caldav_port}\n\n"
-        f"[auth]\n"
-        f"type = none\n\n"
-        f"[rights]\n"
-        f"type = from_file\n"
-        f"file = {rights_path}\n\n"
-        f"[storage]\n"
-        f"filesystem_folder = {storage_dir}\n\n"
-        f"[logging]\n"
-        f"level = warning\n"
-    )
-    return config_path
+class _AuthSentinelHandler(BaseHTTPRequestHandler):
+    """Minimal CalDAV stub that enforces HTTP Basic Auth (RFC 7617).
+
+    Returns 401 Unauthorized with a WWW-Authenticate header for every request
+    that lacks valid credentials.  Accepts any request with the right
+    credentials and returns an empty 207 Multi-Status so that the CalDAV
+    client does not confuse a network error with an auth error.
+    """
+
+    expected_auth: str  # base64("user:password"), set on the class
+
+    def log_message(self, fmt, *args):  # noqa: ANN
+        pass
+
+    def _dispatch(self):
+        authorization = self.headers.get("Authorization", "")
+        if authorization == f"Basic {self.__class__.expected_auth}":
+            payload = b'<?xml version="1.0"?><D:multistatus xmlns:D="DAV:"/>'
+            self.send_response(207)
+            self.send_header("Content-Type", "application/xml; charset=utf-8")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+        else:
+            self.send_response(401)
+            self.send_header("WWW-Authenticate", 'Basic realm="CalDAV"')
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+    do_PROPFIND = do_REPORT = do_GET = do_PUT = do_DELETE = do_OPTIONS = _dispatch
+
+
+class RadicaleController:
+    """Manages the CalDAV process on the configured port.
+
+    In the default (unauthenticated) mode it runs Radicale.  After
+    ``set_credentials`` is called it stops Radicale and runs a lightweight
+    auth-enforcing stub instead.  The stub returns 401 for every request
+    that lacks the configured credentials, which is the minimum behaviour
+    required for the acceptance test to verify that the app surfaces auth
+    errors to the user.
+    """
+
+    def __init__(self, storage_dir: Path, caldav_port: int) -> None:
+        self.storage_dir = storage_dir
+        self.caldav_port = caldav_port
+        self._process: subprocess.Popen | None = None
+        self._sentinel_server: HTTPServer | None = None
+        self._sentinel_thread: threading.Thread | None = None
+
+    def start(self) -> None:
+        config_path = self._write_radicale_config()
+        self._process = subprocess.Popen(
+            [sys.executable, "-m", "radicale", "--config", str(config_path)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+    def stop(self) -> None:
+        self._stop_sentinel()
+        if self._process is not None:
+            self._process.terminate()
+            self._process.wait()
+            self._process = None
+
+    def set_credentials(self, user: str, password: str) -> None:
+        """Switch the CalDAV port to a stub that enforces Basic Auth."""
+        # Stop Radicale (if running).
+        if self._process is not None:
+            self._process.terminate()
+            self._process.wait()
+            self._process = None
+        self._stop_sentinel()
+
+        expected = base64.b64encode(f"{user}:{password}".encode()).decode()
+
+        class Handler(_AuthSentinelHandler):
+            pass
+
+        Handler.expected_auth = expected
+
+        # Retry binding: the OS may briefly retain the port after Radicale exits.
+        server: HTTPServer | None = None
+        for _ in range(20):
+            try:
+                server = HTTPServer(("localhost", self.caldav_port), Handler)
+                break
+            except OSError:
+                time.sleep(0.05)
+        if server is None:
+            raise RuntimeError(
+                f"Could not bind auth sentinel to port {self.caldav_port}"
+            )
+
+        self._sentinel_server = server
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self._sentinel_thread = thread
+        self._wait_until_ready()
+
+    # MARK: - Private
+
+    def _stop_sentinel(self) -> None:
+        if self._sentinel_server is not None:
+            self._sentinel_server.shutdown()
+            self._sentinel_server = None
+            self._sentinel_thread = None
+
+    def _write_radicale_config(self) -> Path:
+        config_path = self.storage_dir / "radicale.conf"
+        rights_path = self.storage_dir / "rights"
+        # Grant all rights to every path for any (or no) user.
+        # The default "owner_only" and "authenticated" modules key calendar access
+        # on path depth (requires exactly one "/" in the sanitised path), which
+        # means flat single-level calendar paths — e.g. /calendar-uid/ — are
+        # treated as top-level principal collections and only receive uppercase
+        # RW rights, not the lowercase rw rights that Radicale requires before it
+        # will expose tagged calendar collections.  A permissive "from_file" rule
+        # sidesteps that logic entirely.
+        rights_path.write_text(
+            "[allow-all]\n"
+            "user = .*\n"
+            "collection = .*\n"
+            "permissions = RrWw\n"
+        )
+        config_path.write_text(
+            f"[server]\n"
+            f"hosts = localhost:{self.caldav_port}\n\n"
+            f"[auth]\n"
+            f"type = none\n\n"
+            f"[rights]\n"
+            f"type = from_file\n"
+            f"file = {rights_path}\n\n"
+            f"[storage]\n"
+            f"filesystem_folder = {self.storage_dir}\n\n"
+            f"[logging]\n"
+            f"level = warning\n"
+        )
+        return config_path
+
+    def _wait_until_ready(self, timeout: float = 5.0) -> None:
+        """Block until the CalDAV port accepts connections."""
+        import socket
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            try:
+                with socket.create_connection(("localhost", self.caldav_port), timeout=0.2):
+                    return
+            except OSError:
+                time.sleep(0.05)
 
 
 class AdminHandler(BaseHTTPRequestHandler):
-    storage: "Storage"  # Set on the class before the server starts
+    storage: "Storage"               # Set on the class before the server starts
+    radicale: "RadicaleController"   # Set on the class before the server starts
 
     def log_message(self, fmt, *args):  # noqa: ANN
         pass  # Suppress per-request output
@@ -178,6 +300,15 @@ class AdminHandler(BaseHTTPRequestHandler):
         elif self.path == "/reset":
             self.storage.reset()
             self._json(200, {"status": "ok"})
+        elif self.path == "/credentials":
+            body = self._read_body()
+            user     = body.get("user")
+            password = body.get("password")
+            if not user or not password:
+                self._json(400, {"error": "user and password required"})
+                return
+            self.radicale.set_credentials(user, password)
+            self._json(200, {"status": "ok"})
         else:
             self._json(404, {"error": "not found"})
 
@@ -209,13 +340,8 @@ def main() -> None:
     storage_dir.mkdir(parents=True, exist_ok=True)
 
     storage = Storage(storage_dir)
-    config_path = make_radicale_config(storage_dir, args.port)
-
-    radicale_proc = subprocess.Popen(
-        [sys.executable, "-m", "radicale", "--config", str(config_path)],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+    radicale = RadicaleController(storage_dir, args.port)
+    radicale.start()
 
     print(f"CalDAV: http://localhost:{args.port}/", file=sys.stderr, flush=True)
     print(f"Admin:  http://localhost:{args.admin_port}/", file=sys.stderr, flush=True)
@@ -224,7 +350,8 @@ def main() -> None:
     class Handler(AdminHandler):
         pass
 
-    Handler.storage = storage
+    Handler.storage  = storage
+    Handler.radicale = radicale
     admin_server = HTTPServer(("localhost", args.admin_port), Handler)
 
     try:
@@ -232,8 +359,7 @@ def main() -> None:
     except KeyboardInterrupt:
         pass
     finally:
-        radicale_proc.terminate()
-        radicale_proc.wait()
+        radicale.stop()
 
 
 if __name__ == "__main__":
