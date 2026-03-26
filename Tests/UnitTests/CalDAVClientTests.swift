@@ -96,6 +96,7 @@ private func reportWithTasks(tasks: [(uid: String, summary: String)]) -> String 
 // MARK: - Spec
 
 final class CalDAVClientSpec: QuickSpec {
+    // swiftlint:disable:next function_body_length
     override func spec() {
         let base = URL(string: "http://test.local/")!
 

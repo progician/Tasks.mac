@@ -6,7 +6,7 @@ import ApplicationServices
 class AcceptanceSpec: QuickSpec {
     // swiftlint:disable:next function_body_length
     override func spec() {
-        describe("Main window") {
+        describe("Tasks.mac") {
             let fakeServer = FakeCalDAVServer()
             var process: Process?
             var appElement: AXUIElement?
@@ -42,68 +42,71 @@ class AcceptanceSpec: QuickSpec {
                 return appElement
             }
 
-            it("shows smart navigation items in the sidebar") {
-                guard let app = launch() else { return }
-                guard let sidebar = UIAXHelper.findFirstElementByRole(
-                    in: app, as: kAXOutlineRole, timeout: 5.0
-                ) else { fail("Sidebar did not appear"); return }
+            context("when run without any CalDAV connection") {
+                it("shows only the smart items in the sidebar for testing") {
+                    guard let app = launch() else { return }
+                    guard let sidebar = UIAXHelper.findFirstElementByRole(
+                        in: app, as: kAXOutlineRole, timeout: 5.0
+                    ) else { fail("Sidebar did not appear"); return }
 
-                let items = UIAXHelper.allStaticTextValues(within: sidebar)
-                expect(items).to(contain("Today"))
-                expect(items).to(contain("Scheduled"))
-                expect(items).to(contain("All"))
-                expect(items).to(contain("Completed"))
+                    let items = UIAXHelper.allStaticTextValues(within: sidebar)
+                    expect(items).to(contain("Today"))
+                    expect(items).to(contain("Scheduled"))
+                    expect(items).to(contain("All"))
+                    expect(items).to(contain("Completed"))
+                }
             }
 
-            it("shows task list names from the CalDAV server in the sidebar") {
-                _ = try? fakeServer.addCalendar(name: "This Week")
-                _ = try? fakeServer.addCalendar(name: "Next Week")
-                guard let app = launch() else { return }
-                guard UIAXHelper.findFirstElementByRole(
-                    in: app, as: kAXOutlineRole, timeout: 5.0
-                ) != nil else { fail("Sidebar did not appear"); return }
-
-                let items = UIAXHelper.findAllStaticTextValue(in: app, timeout: 10.0)
-                expect(items).to(contain("This Week"))
-                expect(items).to(contain("Next Week"))
-            }
-
-            it("shows the content header with the active list name and task count from CalDAV") {
-                let calendarUID = (try? fakeServer.addCalendar(name: "Shopping")) ?? ""
-                _ = try? fakeServer.addTask(summary: "Milk", toCalendar: calendarUID)
-                _ = try? fakeServer.addTask(summary: "Eggs", toCalendar: calendarUID)
-                _ = try? fakeServer.addTask(summary: "Bread", toCalendar: calendarUID)
-                guard let app = launch() else { return }
-
-                let found = UIAXHelper.findAllStaticTextValue(in: app, timeout: 6.0)
-                expect(found).to(contain("Shopping"))
-                expect(found).to(contain("3"))
-            }
-
-            it("shows tasks from the CalDAV server in the task list") {
-                let calendarUID = (try? fakeServer.addCalendar(name: "My Tasks")) ?? ""
-                _ = try? fakeServer.addTask(summary: "Buy groceries", toCalendar: calendarUID)
-                guard let app = launch() else { return }
-
-                let buttons = UIAXHelper.findElementsByRole(in: app, as: kAXButtonRole, timeout: 5.0)
-                expect(buttons.count).to(beGreaterThan(0))
-
-                let found = UIAXHelper.findAllStaticTextValue(in: app, timeout: 5.0)
-                expect(found).to(contain("Buy groceries"))
-            }
-
-            it("shows the calendar name as a task list name on the sidebar") {
-                let CALENDAR_NAME_AS_TASK_LIST_NAME = "Calendar Name To Capture"
-                try! fakeServer.addCalendar(name: CALENDAR_NAME_AS_TASK_LIST_NAME)
-                guard let app = launch() else { return }
-
-                guard let sidebar = UIAXHelper.findFirstElementByRole(in: app, as: kAXOutlineRole) else {
-                    fail("Cannot find side bar")
-                    return
+            context("when there are calendars in the CalDAV server") {
+                beforeEach {
+                    try! fakeServer.addCalendar(name: "This Week")
+                    try! fakeServer.addCalendar(name: "Next Week")
                 }
 
-                let sidebarItems = UIAXHelper.allStaticTextValues(within: sidebar)
-                expect(sidebarItems).to(contain(CALENDAR_NAME_AS_TASK_LIST_NAME))
+                it("shows them as task list names in the sidebar") {
+                    guard let app = launch() else { return }
+                    guard UIAXHelper.findFirstElementByRole(
+                        in: app, as: kAXOutlineRole, timeout: 5.0
+                    ) != nil else { fail("Sidebar did not appear"); return }
+
+                    let items = UIAXHelper.findAllStaticTextValue(in: app, timeout: 10.0)
+                    expect(items).to(contain("This Week"))
+                    expect(items).to(contain("Next Week"))
+                }
+            }
+
+            context("when the calendar in CalDAV has a number of items") {
+                beforeEach {
+                    let calendarUID = (try? fakeServer.addCalendar(name: "Shopping")) ?? ""
+                    try! fakeServer.addTask(summary: "Milk", toCalendar: calendarUID)
+                    try! fakeServer.addTask(summary: "Eggs", toCalendar: calendarUID)
+                    try! fakeServer.addTask(summary: "Bread", toCalendar: calendarUID)
+                }
+
+                it("shows the content header with the active list name and task count") {
+                    guard let app = launch() else { return }
+
+                    let found = UIAXHelper.findAllStaticTextValue(in: app, timeout: 6.0)
+                    expect(found).to(contain("Shopping"))
+                    expect(found).to(contain("3"))
+                }
+            }
+
+            context("when a calendar in the CalDAV server has a number of tasks") {
+                beforeEach {
+                    let calendarUID = (try? fakeServer.addCalendar(name: "My Tasks")) ?? ""
+                    try! fakeServer.addTask(summary: "Buy groceries", toCalendar: calendarUID)
+                }
+
+                it("shows tasks in the main content area as a list") {
+                    guard let app = launch() else { return }
+
+                    let buttons = UIAXHelper.findElementsByRole(in: app, as: kAXButtonRole, timeout: 5.0)
+                    expect(buttons.count).to(beGreaterThan(0))
+
+                    let found = UIAXHelper.findAllStaticTextValue(in: app, timeout: 5.0)
+                    expect(found).to(contain("Buy groceries"))
+                }
             }
         }
     }

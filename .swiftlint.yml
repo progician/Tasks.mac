@@ -3,3 +3,4 @@ excluded:
 
 disabled_rules:
   - trailing_comma
+  - force_try
