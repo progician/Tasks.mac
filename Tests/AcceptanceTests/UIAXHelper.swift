@@ -53,15 +53,19 @@ struct UIAXHelper {
         return nil
     }
 
-    static func findStaticTextValue(in appElement: AXUIElement, timeout: TimeInterval = 5.0) -> String? {
+    static func findStaticTextValue(in element: AXUIElement, timeout: TimeInterval = 5.0) -> String? {
         let start = Date()
         while Date().timeIntervalSince(start) < timeout {
-            if let windowsVal = axValue(of: appElement, attribute: kAXWindowsAttribute as CFString) as? [AXUIElement] {
+            if let windowsVal = axValue(of: element, attribute: kAXWindowsAttribute as CFString) as? [AXUIElement] {
+                // Application element: search through its windows.
                 for win in windowsVal {
                     if let textElem = findFirstStaticText(in: win), let val = value(of: textElem) {
                         return val
                     }
                 }
+            } else if let textElem = findFirstStaticText(in: element), let val = value(of: textElem) {
+                // Container element: search directly within it.
+                return val
             }
             RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
         }
