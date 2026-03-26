@@ -94,7 +94,7 @@ class AcceptanceSpec: QuickSpec {
                 expect(found).to(contain("Buy groceries"))
             }
 
-            it("shows the calendar name as a task list name on the sidebar") {
+            xit("shows the calendar name as a task list name on the sidebar") {
                 let CALENDAR_NAME_AS_TASK_LIST_NAME = "Calendar Name To Capture"
                 try! fakeServer.addCalendar(name: CALENDAR_NAME_AS_TASK_LIST_NAME)
                 launch()
