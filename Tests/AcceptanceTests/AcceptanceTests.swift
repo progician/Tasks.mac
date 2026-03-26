@@ -4,7 +4,7 @@ import Foundation
 import ApplicationServices
 
 class AcceptanceSpec: QuickSpec {
-    // swiftlint:disable:next function_body_length
+    // swiftlint:disable:next function_body_length cyclomatic_complexity
     override func spec() {
         describe("Tasks.mac") {
             let fakeServer = FakeCalDAVServer()
@@ -106,6 +106,25 @@ class AcceptanceSpec: QuickSpec {
 
                     let found = UIAXHelper.findAllStaticTextValue(in: app, timeout: 5.0)
                     expect(found).to(contain("Buy groceries"))
+                }
+            }
+
+            context("when the CalDAV server requires authentication and no credentials are given") {
+                beforeEach {
+                    try! fakeServer.setupCredentials(user: "foo", password: "bar")
+                }
+
+                xit("shows an error status in the status message area") {
+                    guard let app = launch() else { return }
+                    guard let statusMessagePanel = UIAXHelper.findElementById(in: app, id: "statusMessages") else {
+                        fail("Could not find status message panel")
+                        return
+                    }
+                    guard let statusText = UIAXHelper.findStaticTextValue(in: statusMessagePanel) else {
+                        fail("Could not find status message text")
+                        return
+                    }
+                    expect(statusText).to(contain("requires authentication"))
                 }
             }
         }
