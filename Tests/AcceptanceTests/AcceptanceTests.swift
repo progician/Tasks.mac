@@ -34,15 +34,15 @@ class AcceptanceSpec: QuickSpec {
                 fakeServer.stop()
             }
 
-            func launch() {
+            func launch() -> AXUIElement? {
                 process = launchApp(environment: ["CALDAV_URL": fakeServer.calDAVURL.absoluteString])
-                guard process != nil else { fail("Could not launch the app"); return }
+                guard process != nil else { fail("Could not launch the app"); return nil }
                 appElement = AXUIElementCreateApplication(process!.processIdentifier)
+                return appElement
             }
 
             it("shows smart navigation items in the sidebar") {
-                launch()
-                guard let app = appElement else { return }
+                guard let app = launch() else { return }
                 guard let sidebar = UIAXHelper.findFirstElementByRole(
                     in: app, as: kAXOutlineRole, timeout: 5.0
                 ) else { fail("Sidebar did not appear"); return }
@@ -57,8 +57,7 @@ class AcceptanceSpec: QuickSpec {
             it("shows task list names from the CalDAV server in the sidebar") {
                 _ = try? fakeServer.addCalendar(name: "This Week")
                 _ = try? fakeServer.addCalendar(name: "Next Week")
-                launch()
-                guard let app = appElement else { return }
+                guard let app = launch() else { return }
                 guard UIAXHelper.findFirstElementByRole(
                     in: app, as: kAXOutlineRole, timeout: 5.0
                 ) != nil else { fail("Sidebar did not appear"); return }
@@ -73,8 +72,7 @@ class AcceptanceSpec: QuickSpec {
                 _ = try? fakeServer.addTask(summary: "Milk", toCalendar: calendarUID)
                 _ = try? fakeServer.addTask(summary: "Eggs", toCalendar: calendarUID)
                 _ = try? fakeServer.addTask(summary: "Bread", toCalendar: calendarUID)
-                launch()
-                guard let app = appElement else { return }
+                guard let app = launch() else { return }
 
                 let found = UIAXHelper.findAllStaticTextValue(in: app, timeout: 6.0)
                 expect(found).to(contain("Shopping"))
@@ -84,8 +82,7 @@ class AcceptanceSpec: QuickSpec {
             it("shows tasks from the CalDAV server in the task list") {
                 let calendarUID = (try? fakeServer.addCalendar(name: "My Tasks")) ?? ""
                 _ = try? fakeServer.addTask(summary: "Buy groceries", toCalendar: calendarUID)
-                launch()
-                guard let app = appElement else { return }
+                guard let app = launch() else { return }
 
                 let buttons = UIAXHelper.findElementsByRole(in: app, as: kAXButtonRole, timeout: 5.0)
                 expect(buttons.count).to(beGreaterThan(0))
@@ -97,8 +94,7 @@ class AcceptanceSpec: QuickSpec {
             xit("shows the calendar name as a task list name on the sidebar") {
                 let CALENDAR_NAME_AS_TASK_LIST_NAME = "Calendar Name To Capture"
                 try! fakeServer.addCalendar(name: CALENDAR_NAME_AS_TASK_LIST_NAME)
-                launch()
-                guard let app = appElement else {
+                guard let app = launch() else {
                     fail("Couldn't launch app or windows hasn't openned")
                     return
                 }
