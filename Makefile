@@ -1,6 +1,6 @@
 EXECUTABLE_NAME := Tasks.mac
 BUILD_BIN_PATH := $(shell swift build --show-bin-path)
-BUNDLE_PATH := ./.build/dist/Tasks.mac.app
+BUNDLE_PATH := ./build/Tasks.mac.app
 BUNDLE_CONTENTS_PATH := $(BUNDLE_PATH)/Contents
 BUNDLE_BIN_PATH := $(BUNDLE_CONTENTS_PATH)/MacOS
 
@@ -17,16 +17,20 @@ $(BUILD_BIN_PATH)/$(EXECUTABLE_NAME): ./Sources/Tasks.mac/SidebarView.swift ./So
 	swift build
 
 $(BUNDLE_BIN_PATH)/$(EXECUTABLE_NAME): $(BUILD_BIN_PATH)/$(EXECUTABLE_NAME)
-	mkdir -p ./.build/dist/Tasks.mac.app/Contents/MacOS
-	cp $(BUILD_BIN_PATH)/Tasks.mac ./.build/dist/Tasks.mac.app/Contents/MacOS
+	mkdir -p $(BUNDLE_BIN_PATH)
+	cp $(BUILD_BIN_PATH)/Tasks.mac $(BUNDLE_BIN_PATH)
 
 $(BUNDLE_CONTENTS_PATH)/Info.plist: Info.plist
-	mkdir -p ./.build/dist/Tasks.mac.app/Contents/MacOS
-	cp Info.plist ./.build/dist/Tasks.mac.app/Contents
+	mkdir -p $(BUNDLE_BIN_PATH)
+	cp Info.plist $(BUNDLE_CONTENTS_PATH)
 
 $(BUNDLE_CONTENTS_PATH)/Resources/AppIcon.icns: Resources/AppIcon.icns
 	mkdir -p $(BUNDLE_CONTENTS_PATH)/Resources
 	cp Resources/AppIcon.icns $(BUNDLE_CONTENTS_PATH)/Resources/AppIcon.icns
+
+$(BUNDLE_CONTENTS_PATH)/PkgInfo:
+	mkdir -p $(BUNDLE_CONTENTS_PATH)
+	printf 'APPL????' > $(BUNDLE_CONTENTS_PATH)/PkgInfo
 
 app-in-bundle: $(BUNDLE_BIN_PATH)/$(EXECUTABLE_NAME)
 
@@ -34,7 +38,9 @@ plist-in-bundle: $(BUNDLE_CONTENTS_PATH)/Info.plist
 
 icon-in-bundle: $(BUNDLE_CONTENTS_PATH)/Resources/AppIcon.icns
 
-bundle: app-in-bundle plist-in-bundle icon-in-bundle
+pkginfo-in-bundle: $(BUNDLE_CONTENTS_PATH)/PkgInfo
+
+bundle: app-in-bundle plist-in-bundle icon-in-bundle pkginfo-in-bundle
 	codesign --force --sign - $(BUNDLE_PATH)
 
 $(FAKE_CALDAV_PATH)/.venv/bin/radicale: $(FAKE_CALDAV_PATH)/requirements.txt
