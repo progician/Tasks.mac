@@ -159,17 +159,22 @@ struct UIAXHelper {
     }
 
     static func findAllStaticTextValue(in appElement: AXUIElement, timeout: TimeInterval = 5.0) -> [String?] {
-        var results = [String?]()
         let start = Date()
-        while Date().timeIntervalSince(start) < timeout {
-            if let windowsVal = axValue(of: appElement, attribute: kAXWindowsAttribute as CFString) as? [AXUIElement] {
-                for win in windowsVal {
-                    let textElems = findElementsByRole(in: win, as: kAXStaticTextRole)
-                    results.append(contentsOf: textElems.map { value(of: $0) })
-                }
+        var lastSnapshot = Set<String>()
+        repeat {
+            guard let windowsVal = axValue(
+                of: appElement, attribute: kAXWindowsAttribute as CFString
+            ) as? [AXUIElement] else {
+                RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
+                continue
             }
+            let snapshot = Set(windowsVal.flatMap { allStaticTextValues(within: $0) })
+            if !snapshot.isEmpty && snapshot == lastSnapshot {
+                return Array(snapshot)
+            }
+            lastSnapshot = snapshot
             RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
-        }
-        return results
+        } while Date().timeIntervalSince(start) < timeout
+        return Array(lastSnapshot)
     }
 }
