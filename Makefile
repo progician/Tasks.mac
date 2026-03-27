@@ -24,11 +24,17 @@ $(BUNDLE_CONTENTS_PATH)/Info.plist: Info.plist
 	mkdir -p ./.build/dist/Tasks.mac.app/Contents/MacOS
 	cp Info.plist ./.build/dist/Tasks.mac.app/Contents
 
+$(BUNDLE_CONTENTS_PATH)/Resources/AppIcon.icns: Resources/AppIcon.icns
+	mkdir -p $(BUNDLE_CONTENTS_PATH)/Resources
+	cp Resources/AppIcon.icns $(BUNDLE_CONTENTS_PATH)/Resources/AppIcon.icns
+
 app-in-bundle: $(BUNDLE_BIN_PATH)/$(EXECUTABLE_NAME)
 
 plist-in-bundle: $(BUNDLE_CONTENTS_PATH)/Info.plist
 
-bundle: app-in-bundle plist-in-bundle
+icon-in-bundle: $(BUNDLE_CONTENTS_PATH)/Resources/AppIcon.icns
+
+bundle: app-in-bundle plist-in-bundle icon-in-bundle
 	codesign --force --sign - $(BUNDLE_PATH)
 
 $(FAKE_CALDAV_PATH)/.venv/bin/radicale: $(FAKE_CALDAV_PATH)/requirements.txt
