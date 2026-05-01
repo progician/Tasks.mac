@@ -40,6 +40,9 @@ struct UIAXHelper {
         if let titleAttribute = axValue(of: element, attribute: kAXTitleAttribute as CFString) as? String {
             return titleAttribute
         }
+        if let descAttribute = axValue(of: element, attribute: kAXDescriptionAttribute as CFString) as? String {
+            return descAttribute
+        }
         return nil
     }
 

@@ -2,6 +2,8 @@ import SwiftUI
 
 struct StatusBarView: View {
     @ObservedObject var store: TaskStore
+    @State private var isEditingServer = false
+    @State private var serverInput = ""
 
     private var lastSyncText: String {
         guard let lastSync = store.lastSync else { return "Last sync: Never" }
@@ -10,15 +12,25 @@ struct StatusBarView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            if let address = store.serverAddress {
-                Text(address)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            } else {
-                Text("CalDAV server not specified")
-                    .foregroundStyle(.red)
+            Button {
+                serverInput = store.serverAddress ?? ""
+                isEditingServer = true
+            } label: {
+                if let address = store.serverAddress {
+                    Text(address)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                } else {
+                    Text("CalDAV server not specified")
+                        .foregroundStyle(.red)
+                }
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel(store.serverAddress ?? "CalDAV server not specified")
+            .accessibilityIdentifier("serverAddressButton")
+
             Spacer()
+
             if store.hasLocalChanges {
                 Text("Unsynced changes")
                     .foregroundStyle(.orange)
@@ -35,5 +47,34 @@ struct StatusBarView: View {
         .overlay(alignment: .top) { Divider() }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("syncStatusBar")
+        .sheet(isPresented: $isEditingServer) {
+            ServerEditView(serverInput: $serverInput) { store.updateServerAddress($0) }
+        }
+    }
+}
+
+struct ServerEditView: View {
+    @Binding var serverInput: String
+    @Environment(\.dismiss) private var dismiss
+    let onConfirm: (String) -> Void
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("CalDAV Server")
+                .font(.headline)
+            TextField("https://example.com/dav", text: $serverInput)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 320)
+            HStack(spacing: 12) {
+                Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button("Connect") {
+                    onConfirm(serverInput)
+                    dismiss()
+                }
+                .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(24)
     }
 }

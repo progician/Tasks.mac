@@ -8,14 +8,22 @@ final class TaskStore: ObservableObject {
     @Published var syncError: String?
     @Published var lastSync: Date?
     @Published var hasLocalChanges: Bool = false
+    @Published var serverAddress: String?
 
-    let serverAddress: String?
-    private let client: CalDAVClient?
+    private var client: CalDAVClient?
 
     init() {
         let rawURL = ProcessInfo.processInfo.environment["CALDAV_URL"]
         serverAddress = rawURL
         if let rawURL, let url = URL(string: rawURL) {
+            client = CalDAVClient(baseURL: url)
+        }
+    }
+
+    func updateServerAddress(_ urlString: String) {
+        let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        serverAddress = trimmed.isEmpty ? nil : trimmed
+        if let address = serverAddress, let url = URL(string: address) {
             client = CalDAVClient(baseURL: url)
         } else {
             client = nil
