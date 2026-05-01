@@ -1,0 +1,50 @@
+{
+    "version": 10,
+    "configurePresets": [
+        {
+            "name": "base",
+            "hidden": true,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_OSX_DEPLOYMENT_TARGET": "26.4",
+                "CMAKE_OSX_SYSROOT": "macosx"
+            }
+        },
+        {
+            "name": "debug",
+            "displayName": "Debug",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "release",
+            "displayName": "Release",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "debug",
+            "displayName": "Debug",
+            "configurePreset": "debug"
+        },
+        {
+            "name": "release",
+            "displayName": "Release",
+            "configurePreset": "release"
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "debug",
+            "displayName": "Debug",
+            "configurePreset": "debug"
+        }
+    ]
+}

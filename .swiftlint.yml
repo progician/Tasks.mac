@@ -1,5 +1,7 @@
 excluded:
   - .build
+  - build
+  - b
 
 disabled_rules:
   - trailing_comma
