@@ -128,6 +128,23 @@ class AcceptanceSpec: QuickSpec {
                 }
             }
 
+            context("when the user clicks the server address in the status bar") {
+                it("shows a text field pre-filled with the current server address") {
+                    guard let app = launch() else { return }
+                    guard let serverButton = UIAXHelper.findElementById(
+                        in: app, id: "serverAddressButton", timeout: 5.0
+                    ) else {
+                        fail("Server address button not found")
+                        return
+                    }
+                    AXUIElementPerformAction(serverButton, kAXPressAction as CFString)
+                    let textField = UIAXHelper.findFirstElementByRole(
+                        in: app, as: kAXTextFieldRole, timeout: 5.0
+                    )
+                    expect(textField).notTo(beNil())
+                }
+            }
+
             context("when the app is running") {
                 it("shows a status bar with the server address, last sync info, and a Sync button") {
                     guard let app = launch() else { return }

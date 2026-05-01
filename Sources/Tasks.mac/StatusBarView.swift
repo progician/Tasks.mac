@@ -10,9 +10,14 @@ struct StatusBarView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Text(store.serverAddress ?? "")
-                .lineLimit(1)
-                .truncationMode(.middle)
+            if let address = store.serverAddress {
+                Text(address)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            } else {
+                Text("CalDAV server not specified")
+                    .foregroundStyle(.red)
+            }
             Spacer()
             if store.hasLocalChanges {
                 Text("Unsynced changes")
