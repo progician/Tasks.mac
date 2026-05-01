@@ -7,13 +7,15 @@ import Foundation
 ///
 /// Extra entries in `environment` are merged over the inherited process
 /// environment, letting tests inject configuration such as `CALDAV_URL`.
-func launchApp(environment: [String: String] = [:]) -> Process? {
+func launchApp(environment: [String: String] = [:], removingKeys: Set<String> = []) -> Process? {
     guard let bundlePath = ProcessInfo.processInfo.environment["AT_BUNDLE_PATH"] else { return nil }
     let execPath = bundlePath + "/Contents/MacOS/Tasks.mac"
     guard FileManager.default.fileExists(atPath: execPath) else { return nil }
     let proc = Process()
     proc.executableURL = URL(fileURLWithPath: execPath)
-    proc.environment = ProcessInfo.processInfo.environment.merging(environment) { _, new in new }
+    var env = ProcessInfo.processInfo.environment.merging(environment) { _, new in new }
+    for key in removingKeys { env.removeValue(forKey: key) }
+    proc.environment = env
     proc.standardOutput = Pipe()
     proc.standardError  = Pipe()
     try? proc.run()

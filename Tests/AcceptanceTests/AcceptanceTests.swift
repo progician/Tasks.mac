@@ -109,6 +109,25 @@ class AcceptanceSpec: QuickSpec {
                 }
             }
 
+            context("when no CalDAV server is configured") {
+                it("shows a 'CalDAV server not specified' label in the status bar") {
+                    process = launchApp(removingKeys: ["CALDAV_URL"])
+                    guard process != nil else { fail("Could not launch app"); return }
+                    appElement = AXUIElementCreateApplication(process!.processIdentifier)
+                    guard let app = appElement else { fail("Could not get app element"); return }
+
+                    guard UIAXHelper.findElementById(
+                        in: app, id: "syncStatusBar", timeout: 5.0
+                    ) != nil else {
+                        fail("Status bar not found")
+                        return
+                    }
+                    let appTexts = UIAXHelper.findAllStaticTextValue(in: app, timeout: 5.0)
+                        .compactMap { $0 }
+                    expect(appTexts).to(contain("CalDAV server not specified"))
+                }
+            }
+
             context("when the app is running") {
                 it("shows a status bar with the server address, last sync info, and a Sync button") {
                     guard let app = launch() else { return }
