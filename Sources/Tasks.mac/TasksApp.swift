@@ -51,6 +51,8 @@ struct ContentView: View {
             TaskListView(tasks: $store.tasks)
 
             Spacer()
+
+            StatusBarView(store: store)
         }
     }
 }

@@ -36,6 +36,7 @@ add_executable(Tasks_mac
     Sources/Tasks.mac/SidebarView.swift
     Sources/Tasks.mac/TaskListView.swift
     Sources/Tasks.mac/TaskStore.swift
+    Sources/Tasks.mac/StatusBarView.swift
     Sources/Tasks.mac/Task.swift
     Sources/Tasks.mac/CalDAVClient.swift
 )

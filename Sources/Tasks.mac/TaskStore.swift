@@ -6,12 +6,16 @@ final class TaskStore: ObservableObject {
     @Published var tasks: [Task] = []
     @Published var selectedCalendar: CalDAVCalendar?
     @Published var syncError: String?
+    @Published var lastSync: Date?
+    @Published var hasLocalChanges: Bool = false
 
+    let serverAddress: String?
     private let client: CalDAVClient?
 
     init() {
-        if let rawURL = ProcessInfo.processInfo.environment["CALDAV_URL"],
-           let url = URL(string: rawURL) {
+        let rawURL = ProcessInfo.processInfo.environment["CALDAV_URL"]
+        serverAddress = rawURL
+        if let rawURL, let url = URL(string: rawURL) {
             client = CalDAVClient(baseURL: url)
         } else {
             client = nil
@@ -29,6 +33,7 @@ final class TaskStore: ObservableObject {
                 tasks = try await client.fetchTasks(from: first.id)
                     .map { Task(title: $0.summary) }
             }
+            lastSync = Date()
         } catch CalDAVError.authenticationRequired {
             syncError = "CalDAV server requires authentication"
         } catch {
