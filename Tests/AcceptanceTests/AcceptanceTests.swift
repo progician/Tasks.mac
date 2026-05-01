@@ -109,6 +109,24 @@ class AcceptanceSpec: QuickSpec {
                 }
             }
 
+            context("when the app is running") {
+                it("shows a status bar with the server address, last sync info, and a Sync button") {
+                    guard let app = launch() else { return }
+                    guard let statusBar = UIAXHelper.findElementById(
+                        in: app, id: "syncStatusBar", timeout: 5.0
+                    ) else {
+                        fail("Status bar not found")
+                        return
+                    }
+                    let appTexts = UIAXHelper.findAllStaticTextValue(in: app, timeout: 5.0)
+                        .compactMap { $0 }
+                    expect(appTexts.filter { $0.contains("localhost") }).notTo(beEmpty())
+                    expect(appTexts.filter { $0.contains("Last sync:") }).notTo(beEmpty())
+                    let buttons = UIAXHelper.findElementsByRole(in: statusBar, as: kAXButtonRole, timeout: 2.0)
+                    expect(buttons).notTo(beEmpty())
+                }
+            }
+
             context("when the CalDAV server requires authentication and no credentials are given") {
                 beforeEach {
                     try! fakeServer.setupCredentials(user: "foo", password: "bar")
