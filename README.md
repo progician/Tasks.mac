@@ -17,6 +17,8 @@ Key features:
 - macOS 13 or later
 - Swift 6 toolchain
 - Python 3 (for the fake CalDAV server used in tests)
+- CMake 4.0+
+- Ninja for building
 - [swiftlint](https://github.com/realm/SwiftLint) (for linting)
 
 ## Setup
@@ -34,7 +36,8 @@ The Swift package dependencies are resolved automatically by the build system.
 ## Building
 
 ```sh
-make
+cmake --preset <debug|release>
+cmake --build --preset <debug|release>
 ```
 
 The application bundle is placed in the `build/` directory.
@@ -42,11 +45,11 @@ The application bundle is placed in the `build/` directory.
 ## Testing
 
 ```sh
-make test       # acceptance and unit tests
+ctest --preset <debug|release>
 ```
 
 ## Linting
 
 ```sh
-make lint
+cmake --build --preset debug -t lint
 ```

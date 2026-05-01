@@ -16,9 +16,10 @@ Some of the main features of the application is aimed to be:
 
 ## Development commands
 
-- `make test` – Builds and runs the e2e tests of the project
-- `make lint` – Static analysis of the project.
-- `make` – Builds the main application
+- `cmake --preset debug` – Configure the project for building in debug mode
+- `cmake --build --preset debug` – Build the project
+- `ctest --preset debug` – Builds and runs the e2e and unit tests of the project
+- `cmake --build --preset debug -t lint` – Static analysis of the project.
 
 ## Important Rules and Constraints
 
