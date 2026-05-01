@@ -154,9 +154,16 @@ class AcceptanceSpec: QuickSpec {
                         fail("Status bar not found")
                         return
                     }
+                    guard let serverButton = UIAXHelper.findElementById(
+                        in: app, id: "serverAddressButton", timeout: 5.0
+                    ) else {
+                        fail("Server address button not found")
+                        return
+                    }
+                    let serverTitle = UIAXHelper.value(of: serverButton) ?? ""
+                    expect(serverTitle).to(contain("localhost"))
                     let appTexts = UIAXHelper.findAllStaticTextValue(in: app, timeout: 5.0)
                         .compactMap { $0 }
-                    expect(appTexts.filter { $0.contains("localhost") }).notTo(beEmpty())
                     expect(appTexts.filter { $0.contains("Last sync:") }).notTo(beEmpty())
                     let buttons = UIAXHelper.findElementsByRole(in: statusBar, as: kAXButtonRole, timeout: 2.0)
                     expect(buttons).notTo(beEmpty())
