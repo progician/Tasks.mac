@@ -116,15 +116,14 @@ class AcceptanceSpec: QuickSpec {
                     appElement = AXUIElementCreateApplication(process!.processIdentifier)
                     guard let app = appElement else { fail("Could not get app element"); return }
 
-                    guard UIAXHelper.findElementById(
-                        in: app, id: "syncStatusBar", timeout: 5.0
-                    ) != nil else {
-                        fail("Status bar not found")
+                    guard let serverButton = UIAXHelper.findElementById(
+                        in: app, id: "serverAddressButton", timeout: 5.0
+                    ) else {
+                        fail("Server address button not found")
                         return
                     }
-                    let appTexts = UIAXHelper.findAllStaticTextValue(in: app, timeout: 5.0)
-                        .compactMap { $0 }
-                    expect(appTexts).to(contain("CalDAV server not specified"))
+                    expect(UIAXHelper.value(of: serverButton))
+                        .to(equal("CalDAV server not specified"))
                 }
             }
 
