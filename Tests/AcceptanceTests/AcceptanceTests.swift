@@ -251,6 +251,50 @@ class AcceptanceSpec: QuickSpec {
                 }
             }
 
+            context("when the user selects Nextcloud as the server type") {
+                it("connects using the CalDAV URL constructed from the server base URL and username") {
+                    process = launchApp(removingKeys: ["CALDAV_URL"])
+                    guard process != nil else { fail("Could not launch app"); return }
+                    appElement = AXUIElementCreateApplication(process!.processIdentifier)
+                    guard let app = appElement else { fail("Could not get app element"); return }
+
+                    guard let serverButton = UIAXHelper.findElementById(
+                        in: app, id: "serverAddressButton", timeout: 5.0
+                    ) else { fail("Server address button not found"); return }
+                    AXUIElementPerformAction(serverButton, kAXPressAction as CFString)
+
+                    guard let nextcloudOption = UIAXHelper.findElementById(
+                        in: app, id: "nextcloudServerType", timeout: 3.0
+                    ) else { fail("Nextcloud server type option not found"); return }
+                    AXUIElementPerformAction(nextcloudOption, kAXPressAction as CFString)
+                    UIAXHelper.spinRunLoop(for: 0.3)
+
+                    guard let serverURLField = UIAXHelper.findElementById(
+                        in: app, id: "nextcloudServerURLField", timeout: 3.0
+                    ) else { fail("Nextcloud server URL field not found"); return }
+                    UIAXHelper.setValue("http://localhost:5232", on: serverURLField)
+
+                    guard let usernameField = UIAXHelper.findElementById(
+                        in: app, id: "nextcloudUsernameField", timeout: 3.0
+                    ) else { fail("Nextcloud username field not found"); return }
+                    UIAXHelper.setValue("alice", on: usernameField)
+                    UIAXHelper.spinRunLoop(for: 0.3)
+
+                    guard let connectButton = UIAXHelper.findElementById(
+                        in: app, id: "connectButton", timeout: 3.0
+                    ) else { fail("Connect button not found"); return }
+                    AXUIElementPerformAction(connectButton, kAXPressAction as CFString)
+                    UIAXHelper.spinRunLoop(for: 0.5)
+
+                    guard let updatedServerButton = UIAXHelper.findElementById(
+                        in: app, id: "serverAddressButton", timeout: 5.0
+                    ) else { fail("Server address button not found after connect"); return }
+                    let serverTitle = UIAXHelper.value(of: updatedServerButton) ?? ""
+                    expect(serverTitle).to(contain("localhost:5232"))
+                    expect(serverTitle).to(contain("alice"))
+                }
+            }
+
             context("when the CalDAV server requires authentication and no credentials are given") {
                 beforeEach {
                     try! fakeServer.setupCredentials(user: "foo", password: "bar")
