@@ -162,7 +162,6 @@ class AcceptanceSpec: QuickSpec {
                     let serverTitle = UIAXHelper.value(of: serverButton) ?? ""
                     expect(serverTitle).to(contain("localhost"))
                     let appTexts = UIAXHelper.findAllStaticTextValue(in: app, timeout: 5.0)
-                        .compactMap { $0 }
                     expect(appTexts.filter { $0.contains("Last sync:") }).notTo(beEmpty())
                     let buttons = UIAXHelper.findElementsByRole(in: statusBar, as: kAXButtonRole, timeout: 2.0)
                     expect(buttons).notTo(beEmpty())
@@ -190,6 +189,65 @@ class AcceptanceSpec: QuickSpec {
                     ) else { fail("Connect button not found"); return }
 
                     expect(UIAXHelper.isEnabled(connectButton)).to(beFalse())
+                }
+            }
+
+            context("when the user saves a CalDAV server URL") {
+                let persistenceDomain = "Tasks.mac.AcceptanceTests.Persistence"
+
+                beforeEach {
+                    UserDefaults(suiteName: persistenceDomain)?
+                        .removePersistentDomain(forName: persistenceDomain)
+                }
+
+                afterEach {
+                    UserDefaults(suiteName: persistenceDomain)?
+                        .removePersistentDomain(forName: persistenceDomain)
+                }
+
+                it("remembers the URL after the app is restarted") {
+                    process = launchApp(
+                        environment: ["AT_DEFAULTS_DOMAIN": persistenceDomain],
+                        removingKeys: ["CALDAV_URL"]
+                    )
+                    guard process != nil else { fail("Could not launch app"); return }
+                    appElement = AXUIElementCreateApplication(process!.processIdentifier)
+                    guard let app = appElement else { fail("Could not get app element"); return }
+
+                    guard let serverButton = UIAXHelper.findElementById(
+                        in: app, id: "serverAddressButton", timeout: 5.0
+                    ) else { fail("Server address button not found"); return }
+                    AXUIElementPerformAction(serverButton, kAXPressAction as CFString)
+
+                    guard let textField = UIAXHelper.findFirstElementByRole(
+                        in: app, as: kAXTextFieldRole, timeout: 5.0
+                    ) else { fail("Text field not found"); return }
+                    UIAXHelper.setValue("http://localhost:5232", on: textField)
+
+                    guard let connectButton = UIAXHelper.findElementById(
+                        in: app, id: "connectButton", timeout: 3.0
+                    ) else { fail("Connect button not found"); return }
+                    AXUIElementPerformAction(connectButton, kAXPressAction as CFString)
+                    UIAXHelper.spinRunLoop(for: 0.5)
+
+                    process!.terminate()
+                    process!.waitUntilExit()
+                    process = nil
+                    appElement = nil
+
+                    process = launchApp(
+                        environment: ["AT_DEFAULTS_DOMAIN": persistenceDomain],
+                        removingKeys: ["CALDAV_URL"]
+                    )
+                    guard process != nil else { fail("Could not relaunch app"); return }
+                    appElement = AXUIElementCreateApplication(process!.processIdentifier)
+                    guard let app2 = appElement else { fail("Could not get app element"); return }
+
+                    guard let serverButton2 = UIAXHelper.findElementById(
+                        in: app2, id: "serverAddressButton", timeout: 5.0
+                    ) else { fail("Server address button not found after relaunch"); return }
+
+                    expect(UIAXHelper.value(of: serverButton2)).to(contain("localhost:5232"))
                 }
             }
 
