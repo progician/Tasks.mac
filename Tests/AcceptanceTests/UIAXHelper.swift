@@ -1,10 +1,6 @@
 import Foundation
 import ApplicationServices
 
-enum AXErrorWrapper: Error {
-    case axError(AXError)
-}
-
 /// Convenience helpers for querying AX elements
 struct UIAXHelper {
     static func axValue(of element: AXUIElement, attribute: CFString) -> AnyObject? {
