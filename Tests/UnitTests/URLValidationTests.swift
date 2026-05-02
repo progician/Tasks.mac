@@ -49,5 +49,17 @@ final class URLValidationSpec: QuickSpec {
                 }
             }
         }
+
+        describe("constructNextcloudCalDAVURL") {
+            it("constructs the CalDAV path from a server base URL and username") {
+                let url = constructNextcloudCalDAVURL(serverURL: "https://cloud.example.com", username: "alice")
+                expect(url).to(equal("https://cloud.example.com/remote.php/dav/calendars/alice/"))
+            }
+
+            it("strips a trailing slash from the server URL before appending the path") {
+                let url = constructNextcloudCalDAVURL(serverURL: "https://cloud.example.com/", username: "alice")
+                expect(url).to(equal("https://cloud.example.com/remote.php/dav/calendars/alice/"))
+            }
+        }
     }
 }
