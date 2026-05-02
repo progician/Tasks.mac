@@ -11,8 +11,13 @@ final class TaskStore: ObservableObject {
     @Published var serverAddress: String?
 
     private var client: CalDAVClient?
+    private let storage: ServerAddressStorage
 
     init() {
+        let domain = ProcessInfo.processInfo.environment["AT_DEFAULTS_DOMAIN"]
+        let defaults = domain.flatMap { UserDefaults(suiteName: $0) } ?? .standard
+        storage = ServerAddressStorage(defaults: defaults)
+
         let rawURL = ProcessInfo.processInfo.environment["CALDAV_URL"]
         serverAddress = rawURL
         if let rawURL, let url = URL(string: rawURL) {

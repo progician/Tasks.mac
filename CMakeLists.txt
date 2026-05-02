@@ -24,6 +24,7 @@ add_library(TasksCore STATIC
     Sources/TasksCore/CalDAVClient.swift
     Sources/TasksCore/Task.swift
     Sources/TasksCore/URLValidation.swift
+    Sources/TasksCore/ServerAddressStorage.swift
 )
 set_target_properties(TasksCore PROPERTIES
     Swift_LANGUAGE_VERSION 6
@@ -70,6 +71,7 @@ xctest_add_bundle(Tasks_mac_ut Tasks_mac
     Tests/UnitTests/CalDAVClientTests.swift
     Tests/UnitTests/StubHTTPClient.swift
     Tests/UnitTests/URLValidationTests.swift
+    Tests/UnitTests/ServerAddressStorageTests.swift
 )
 set_target_properties(Tasks_mac_ut PROPERTIES
     Swift_LANGUAGE_VERSION 6
