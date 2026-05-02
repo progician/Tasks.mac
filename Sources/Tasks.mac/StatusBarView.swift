@@ -58,13 +58,22 @@ struct ServerEditView: View {
     @Environment(\.dismiss) private var dismiss
     let onConfirm: (String) -> Void
 
+    private var urlIsValid: Bool { isValidCalDAVURL(serverInput) }
+
     var body: some View {
         VStack(spacing: 20) {
             Text("CalDAV Server")
                 .font(.headline)
-            TextField("https://example.com/dav", text: $serverInput)
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 320)
+            VStack(alignment: .leading, spacing: 4) {
+                TextField("https://example.com/dav", text: $serverInput)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 320)
+                if !serverInput.isEmpty && !urlIsValid {
+                    Text("Enter a valid http:// or https:// URL")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            }
             HStack(spacing: 12) {
                 Button("Cancel") { dismiss() }
                     .keyboardShortcut(.cancelAction)
@@ -73,6 +82,7 @@ struct ServerEditView: View {
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)
+                .disabled(!urlIsValid)
                 .accessibilityIdentifier("connectButton")
             }
         }
