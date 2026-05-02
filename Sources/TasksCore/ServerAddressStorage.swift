@@ -9,12 +9,16 @@ public struct ServerAddressStorage {
     }
 
     public func load() -> String? {
-        nil
+        defaults.string(forKey: Self.key)
     }
 
     public func save(_ url: String) {
+        defaults.set(url, forKey: Self.key)
+        defaults.synchronize()
     }
 
     public func clear() {
+        defaults.removeObject(forKey: Self.key)
+        defaults.synchronize()
     }
 }
