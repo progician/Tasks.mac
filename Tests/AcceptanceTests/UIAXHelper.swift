@@ -171,7 +171,7 @@ struct UIAXHelper {
         RunLoop.current.run(until: Date(timeIntervalSinceNow: duration))
     }
 
-    static func findAllStaticTextValue(in appElement: AXUIElement, timeout: TimeInterval = 5.0) -> [String?] {
+    static func findAllStaticTextValue(in appElement: AXUIElement, timeout: TimeInterval = 5.0) -> [String] {
         let start = Date()
         var lastSnapshot = Set<String>()
         repeat {

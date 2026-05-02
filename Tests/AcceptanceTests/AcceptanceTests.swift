@@ -162,7 +162,6 @@ class AcceptanceSpec: QuickSpec {
                     let serverTitle = UIAXHelper.value(of: serverButton) ?? ""
                     expect(serverTitle).to(contain("localhost"))
                     let appTexts = UIAXHelper.findAllStaticTextValue(in: app, timeout: 5.0)
-                        .compactMap { $0 }
                     expect(appTexts.filter { $0.contains("Last sync:") }).notTo(beEmpty())
                     let buttons = UIAXHelper.findElementsByRole(in: statusBar, as: kAXButtonRole, timeout: 2.0)
                     expect(buttons).notTo(beEmpty())
