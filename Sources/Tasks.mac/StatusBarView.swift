@@ -73,6 +73,7 @@ struct ServerEditView: View {
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)
+                .accessibilityIdentifier("connectButton")
             }
         }
         .padding(24)

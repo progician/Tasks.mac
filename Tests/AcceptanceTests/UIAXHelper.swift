@@ -161,6 +161,20 @@ struct UIAXHelper {
         return nil
     }
 
+    static func isEnabled(_ element: AXUIElement) -> Bool {
+        guard let val = axValue(of: element, attribute: kAXEnabledAttribute as CFString) as? Bool else { return true }
+        return val
+    }
+
+    @discardableResult
+    static func setValue(_ value: String, on element: AXUIElement) -> Bool {
+        AXUIElementSetAttributeValue(element, kAXValueAttribute as CFString, value as CFTypeRef) == .success
+    }
+
+    static func spinRunLoop(for duration: TimeInterval) {
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: duration))
+    }
+
     static func findAllStaticTextValue(in appElement: AXUIElement, timeout: TimeInterval = 5.0) -> [String?] {
         let start = Date()
         var lastSnapshot = Set<String>()

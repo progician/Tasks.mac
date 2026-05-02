@@ -23,6 +23,7 @@ include(cmake/Dependencies.cmake)
 add_library(TasksCore STATIC
     Sources/TasksCore/CalDAVClient.swift
     Sources/TasksCore/Task.swift
+    Sources/TasksCore/URLValidation.swift
 )
 set_target_properties(TasksCore PROPERTIES
     Swift_LANGUAGE_VERSION 6
@@ -68,6 +69,7 @@ add_custom_command(TARGET Tasks_mac POST_BUILD
 xctest_add_bundle(Tasks_mac_ut Tasks_mac
     Tests/UnitTests/CalDAVClientTests.swift
     Tests/UnitTests/StubHTTPClient.swift
+    Tests/UnitTests/URLValidationTests.swift
 )
 set_target_properties(Tasks_mac_ut PROPERTIES
     Swift_LANGUAGE_VERSION 6

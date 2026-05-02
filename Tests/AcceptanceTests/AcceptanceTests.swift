@@ -169,6 +169,30 @@ class AcceptanceSpec: QuickSpec {
                 }
             }
 
+            context("when the user enters an invalid URL in the server edit sheet") {
+                it("disables the Connect button") {
+                    guard let app = launch() else { return }
+                    guard let serverButton = UIAXHelper.findElementById(
+                        in: app, id: "serverAddressButton", timeout: 5.0
+                    ) else { fail("Server address button not found"); return }
+
+                    AXUIElementPerformAction(serverButton, kAXPressAction as CFString)
+
+                    guard let textField = UIAXHelper.findFirstElementByRole(
+                        in: app, as: kAXTextFieldRole, timeout: 5.0
+                    ) else { fail("Text field not found"); return }
+
+                    UIAXHelper.setValue("not-a-url", on: textField)
+                    UIAXHelper.spinRunLoop(for: 0.5)
+
+                    guard let connectButton = UIAXHelper.findElementById(
+                        in: app, id: "connectButton", timeout: 3.0
+                    ) else { fail("Connect button not found"); return }
+
+                    expect(UIAXHelper.isEnabled(connectButton)).to(beFalse())
+                }
+            }
+
             context("when the CalDAV server requires authentication and no credentials are given") {
                 beforeEach {
                     try! fakeServer.setupCredentials(user: "foo", password: "bar")
