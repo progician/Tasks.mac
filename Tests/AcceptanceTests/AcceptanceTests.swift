@@ -3,6 +3,7 @@ import Nimble
 import Foundation
 import ApplicationServices
 
+// swiftlint:disable:next type_body_length
 class AcceptanceSpec: QuickSpec {
     // swiftlint:disable:next function_body_length cyclomatic_complexity
     override func spec() {
@@ -110,8 +111,23 @@ class AcceptanceSpec: QuickSpec {
             }
 
             context("when no CalDAV server is configured") {
+                let emptyDomain = "Tasks.mac.AcceptanceTests.NoServer"
+
+                beforeEach {
+                    UserDefaults(suiteName: emptyDomain)?
+                        .removePersistentDomain(forName: emptyDomain)
+                }
+
+                afterEach {
+                    UserDefaults(suiteName: emptyDomain)?
+                        .removePersistentDomain(forName: emptyDomain)
+                }
+
                 it("shows a 'CalDAV server not specified' label in the status bar") {
-                    process = launchApp(removingKeys: ["CALDAV_URL"])
+                    process = launchApp(
+                        environment: ["AT_DEFAULTS_DOMAIN": emptyDomain],
+                        removingKeys: ["CALDAV_URL"]
+                    )
                     guard process != nil else { fail("Could not launch app"); return }
                     appElement = AXUIElementCreateApplication(process!.processIdentifier)
                     guard let app = appElement else { fail("Could not get app element"); return }
@@ -252,8 +268,23 @@ class AcceptanceSpec: QuickSpec {
             }
 
             context("when the user selects Nextcloud as the server type") {
+                let nextcloudDomain = "Tasks.mac.AcceptanceTests.NextcloudServerType"
+
+                beforeEach {
+                    UserDefaults(suiteName: nextcloudDomain)?
+                        .removePersistentDomain(forName: nextcloudDomain)
+                }
+
+                afterEach {
+                    UserDefaults(suiteName: nextcloudDomain)?
+                        .removePersistentDomain(forName: nextcloudDomain)
+                }
+
                 it("connects using the CalDAV URL constructed from the server base URL and username") {
-                    process = launchApp(removingKeys: ["CALDAV_URL"])
+                    process = launchApp(
+                        environment: ["AT_DEFAULTS_DOMAIN": nextcloudDomain],
+                        removingKeys: ["CALDAV_URL"]
+                    )
                     guard process != nil else { fail("Could not launch app"); return }
                     appElement = AXUIElementCreateApplication(process!.processIdentifier)
                     guard let app = appElement else { fail("Could not get app element"); return }
