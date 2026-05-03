@@ -41,6 +41,7 @@ struct StatusBarView: View {
             Text(lastSyncText)
             Button("Sync") { }
                 .controlSize(.small)
+                .accessibilityIdentifier("syncButton")
         }
         .font(.caption)
         .foregroundStyle(.secondary)

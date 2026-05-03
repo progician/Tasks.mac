@@ -326,6 +326,27 @@ class AcceptanceSpec: QuickSpec {
                 }
             }
 
+            context("when the user presses the Sync button after a task is added to the server") {
+                it("refreshes and shows the newly added task") {
+                    let calendarUID = (try? fakeServer.addCalendar(name: "Work")) ?? ""
+
+                    guard let app = launch() else { return }
+
+                    // Wait for the initial auto-sync to settle before adding new data.
+                    UIAXHelper.spinRunLoop(for: 2.0)
+
+                    try! fakeServer.addTask(summary: "Added after launch", toCalendar: calendarUID)
+
+                    guard let syncButton = UIAXHelper.findElementById(
+                        in: app, id: "syncButton", timeout: 5.0
+                    ) else { fail("Sync button not found"); return }
+                    AXUIElementPerformAction(syncButton, kAXPressAction as CFString)
+
+                    let texts = UIAXHelper.findAllStaticTextValue(in: app, timeout: 8.0)
+                    expect(texts).to(contain("Added after launch"))
+                }
+            }
+
             context("when the CalDAV server requires authentication and no credentials are given") {
                 beforeEach {
                     try! fakeServer.setupCredentials(user: "foo", password: "bar")
