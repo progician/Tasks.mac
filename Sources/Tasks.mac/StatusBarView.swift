@@ -39,8 +39,9 @@ struct StatusBarView: View {
                     .foregroundStyle(.orange)
             }
             Text(lastSyncText)
-            Button("Sync") { }
+            Button("Sync", action: { _Concurrency.Task { await store.sync() } })
                 .controlSize(.small)
+                .accessibilityIdentifier("syncButton")
         }
         .font(.caption)
         .foregroundStyle(.secondary)
