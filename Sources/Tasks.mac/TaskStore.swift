@@ -1,5 +1,10 @@
 import Foundation
 
+enum ServerConfiguration {
+    case generic(url: String)
+    case nextcloud(serverURL: String, username: String)
+}
+
 @MainActor
 final class TaskStore: ObservableObject {
     @Published var calendars: [CalDAVCalendar] = []
@@ -9,6 +14,8 @@ final class TaskStore: ObservableObject {
     @Published var lastSync: Date?
     @Published var hasLocalChanges: Bool = false
     @Published var serverAddress: String?
+    @Published var nextcloudServerURL: String?
+    @Published var nextcloudUsername: String?
 
     private var client: CalDAVClient?
     private let storage: ServerAddressStorage
@@ -18,22 +25,51 @@ final class TaskStore: ObservableObject {
         let defaults = domain.flatMap { UserDefaults(suiteName: $0) } ?? .standard
         storage = ServerAddressStorage(defaults: defaults)
 
-        let rawURL = ProcessInfo.processInfo.environment["CALDAV_URL"] ?? storage.load()
-        serverAddress = rawURL
-        if let rawURL, let url = URL(string: rawURL) {
-            client = CalDAVClient(baseURL: url)
+        if let envURL = ProcessInfo.processInfo.environment["CALDAV_URL"] {
+            serverAddress = envURL
+            if let url = URL(string: envURL) {
+                client = CalDAVClient(baseURL: url)
+            }
+        } else if let ncServerURL = storage.loadNextcloudServerURL(),
+                  let ncUsername = storage.loadNextcloudUsername() {
+            nextcloudServerURL = ncServerURL
+            nextcloudUsername = ncUsername
+            let constructed = constructNextcloudCalDAVURL(serverURL: ncServerURL, username: ncUsername)
+            serverAddress = constructed
+            if let url = URL(string: constructed) {
+                client = CalDAVClient(baseURL: url)
+            }
+        } else if let rawURL = storage.load() {
+            serverAddress = rawURL
+            if let url = URL(string: rawURL) {
+                client = CalDAVClient(baseURL: url)
+            }
         }
     }
 
-    func updateServerAddress(_ urlString: String) {
-        let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
-        serverAddress = trimmed.isEmpty ? nil : trimmed
-        if let address = serverAddress, let url = URL(string: address) {
-            storage.save(address)
-            client = CalDAVClient(baseURL: url)
-        } else {
-            storage.clear()
-            client = nil
+    func updateServerConfiguration(_ config: ServerConfiguration) {
+        storage.clear()
+        switch config {
+        case .generic(let url):
+            let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
+            serverAddress = trimmed.isEmpty ? nil : trimmed
+            nextcloudServerURL = nil
+            nextcloudUsername = nil
+            if let address = serverAddress, let url = URL(string: address) {
+                storage.save(address)
+                client = CalDAVClient(baseURL: url)
+            } else {
+                client = nil
+            }
+        case .nextcloud(let serverURL, let username):
+            let constructed = constructNextcloudCalDAVURL(serverURL: serverURL, username: username)
+            serverAddress = constructed
+            nextcloudServerURL = serverURL
+            nextcloudUsername = username
+            storage.saveNextcloudSettings(serverURL: serverURL, username: username)
+            if let url = URL(string: constructed) {
+                client = CalDAVClient(baseURL: url)
+            }
         }
     }
 

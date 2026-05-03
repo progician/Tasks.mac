@@ -10,3 +10,8 @@ public func isValidCalDAVURL(_ string: String) -> Bool {
     else { return false }
     return true
 }
+
+public func constructNextcloudCalDAVURL(serverURL: String, username: String) -> String {
+    let base = serverURL.hasSuffix("/") ? String(serverURL.dropLast()) : serverURL
+    return "\(base)/remote.php/dav/calendars/\(username)/"
+}
