@@ -40,6 +40,29 @@ final class ServerAddressStorageSpec: QuickSpec {
                 let freshStorage = ServerAddressStorage(defaults: defaults)
                 expect(freshStorage.load()).to(equal("https://example.com/dav"))
             }
+
+            context("Nextcloud settings") {
+                it("returns nil for the nextcloud server URL when nothing is saved") {
+                    expect(storage.loadNextcloudServerURL()).to(beNil())
+                }
+
+                it("returns nil for the nextcloud username when nothing is saved") {
+                    expect(storage.loadNextcloudUsername()).to(beNil())
+                }
+
+                it("persists and retrieves the nextcloud server URL and username") {
+                    storage.saveNextcloudSettings(serverURL: "https://cloud.example.com", username: "alice")
+                    expect(storage.loadNextcloudServerURL()).to(equal("https://cloud.example.com"))
+                    expect(storage.loadNextcloudUsername()).to(equal("alice"))
+                }
+
+                it("clears nextcloud settings when clear() is called") {
+                    storage.saveNextcloudSettings(serverURL: "https://cloud.example.com", username: "alice")
+                    storage.clear()
+                    expect(storage.loadNextcloudServerURL()).to(beNil())
+                    expect(storage.loadNextcloudUsername()).to(beNil())
+                }
+            }
         }
     }
 }

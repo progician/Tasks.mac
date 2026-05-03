@@ -164,7 +164,24 @@ struct UIAXHelper {
 
     @discardableResult
     static func setValue(_ value: String, on element: AXUIElement) -> Bool {
-        AXUIElementSetAttributeValue(element, kAXValueAttribute as CFString, value as CFTypeRef) == .success
+        // Focus the element first. SwiftUI's TextField binding is only notified via
+        // textDidChange when the field editor is active. Without focus, setting
+        // kAXValueAttribute updates the AX value but bypasses the binding.
+        AXUIElementSetAttributeValue(element, kAXFocusedAttribute as CFString, true as CFTypeRef)
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.05))
+        if AXUIElementSetAttributeValue(element, kAXValueAttribute as CFString, value as CFTypeRef) == .success {
+            return true
+        }
+        // When the element is a wrapper group (SwiftUI TextField with .accessibilityIdentifier),
+        // fall back to the first text field descendant.
+        if let textField = findFirstElementByRoleSync(in: element, as: kAXTextFieldRole) {
+            AXUIElementSetAttributeValue(textField, kAXFocusedAttribute as CFString, true as CFTypeRef)
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.05))
+            return AXUIElementSetAttributeValue(
+                textField, kAXValueAttribute as CFString, value as CFTypeRef
+            ) == .success
+        }
+        return false
     }
 
     static func spinRunLoop(for duration: TimeInterval) {
