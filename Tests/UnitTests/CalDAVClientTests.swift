@@ -198,6 +198,19 @@ final class CalDAVClientSpec: QuickSpec {
                     expect(stub.requests[1].url).to(equal(base))
                 }
             }
+
+            context("when the server exposes DAV under /remote.php/dav") {
+                it("tries the WebDAV root and uses its home-set for discovery") {
+                    stub.enqueue(xml: emptyMultistatus)
+                    stub.enqueue(xml: propfindWithHomeSet("/davhome/"))
+                    stub.enqueue(xml: calendarListing(calendars: [("/davhome/work/", "Work")]))
+
+                    let calendars = try await CalDAVClient(baseURL: base, http: stub).discoverCalendars()
+
+                    expect(calendars.map(\.displayName)).to(equal(["Work"]))
+                    expect(stub.requests[1].url).to(equal(URL(string: "http://test.local/remote.php/dav/")))
+                }
+            }
         }
 
         describe("fetchTasks") {

@@ -27,8 +27,15 @@ final class TaskStore: ObservableObject {
         storage = ServerAddressStorage(defaults: defaults)
 
         if let envURL = ProcessInfo.processInfo.environment["CALDAV_URL"] {
-            serverAddress = envURL
-            if let url = URL(string: envURL) {
+            // If we have stored Nextcloud settings that match this host, prefer
+            // the constructed Nextcloud CalDAV URL for the stored username.
+            let adjusted = resolveNextcloudCalDAVURLIfNeeded(
+                base: envURL,
+                storedServerURL: storage.loadNextcloudServerURL(),
+                storedUsername: storage.loadNextcloudUsername()
+            )
+            serverAddress = adjusted
+            if let url = URL(string: adjusted) {
                 client = CalDAVClient(baseURL: url)
             }
         } else if let ncServerURL = storage.loadNextcloudServerURL(),

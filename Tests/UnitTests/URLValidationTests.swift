@@ -61,5 +61,25 @@ final class URLValidationSpec: QuickSpec {
                 expect(url).to(equal("https://cloud.example.com/remote.php/dav/calendars/alice/"))
             }
         }
+
+        describe("resolveNextcloudCalDAVURLIfNeeded") {
+            it("returns constructed CalDAV URL when base is server root and stored settings match host") {
+                let base = "https://nxc.progician.me"
+                let resolved = resolveNextcloudCalDAVURLIfNeeded(base: base, storedServerURL: "https://nxc.progician.me", storedUsername: "bob")
+                expect(resolved).to(equal("https://nxc.progician.me/remote.php/dav/calendars/bob/"))
+            }
+
+            it("leaves the base unchanged when it already contains the WebDAV path") {
+                let base = "https://nxc.progician.me/remote.php/dav/calendars/bob/"
+                let resolved = resolveNextcloudCalDAVURLIfNeeded(base: base, storedServerURL: "https://nxc.progician.me", storedUsername: "bob")
+                expect(resolved).to(equal(base))
+            }
+
+            it("leaves the base unchanged when hosts do not match") {
+                let base = "https://other.example.com"
+                let resolved = resolveNextcloudCalDAVURLIfNeeded(base: base, storedServerURL: "https://nxc.progician.me", storedUsername: "bob")
+                expect(resolved).to(equal(base))
+            }
+        }
     }
 }
