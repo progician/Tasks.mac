@@ -4,6 +4,8 @@
 /Packages
 xcuserdata/
 DerivedData/
+__pycache__/
 .swiftpm/configuration/registries.json
 .swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
 .netrc
+*.pyc
