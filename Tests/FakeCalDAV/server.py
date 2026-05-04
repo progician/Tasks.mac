@@ -60,14 +60,33 @@ class Storage:
 
     def __init__(self, base: Path) -> None:
         self.base = base
+        self._user_prefix: str = ""
         self._init_collections()
 
     @property
     def user_dir(self) -> Path:
-        # With an empty username, Python's pathlib drops the empty component,
-        # so collections sit directly under collection-root/ and Radicale
-        # serves them at /<uid>/ with no user-prefix in the URL.
+        # When a user prefix is set (e.g. after enableLoginFlow), calendars live
+        # under collection-root/<user>/ so Radicale maps them to /<user>/<uid>/.
+        # Without a prefix, collections sit directly under collection-root/ and
+        # Radicale serves them at /<uid>/ with no user-prefix in the URL.
+        if self._user_prefix:
+            return self.base / "collection-root" / self._user_prefix
         return self.base / "collection-root"
+
+    def set_user(self, username: str) -> None:
+        """Move existing root-level calendars into the user's namespace.
+
+        Called when SSO credentials are staged so that Radicale serves them
+        under /<username>/<calendar-uid>/ — matching what a real Nextcloud
+        instance returns as the calendar-home-set for the authenticated user.
+        """
+        root = self.base / "collection-root"
+        new_user_dir = root / username
+        new_user_dir.mkdir(parents=True, exist_ok=True)
+        for item in list(root.iterdir()):
+            if item.is_dir() and not item.name.startswith(".") and item.name != username:
+                shutil.move(str(item), str(new_user_dir / item.name))
+        self._user_prefix = username
 
     def _init_collections(self) -> None:
         self.user_dir.mkdir(parents=True, exist_ok=True)
@@ -103,6 +122,7 @@ class Storage:
         collection_root = self.base / "collection-root"
         if collection_root.exists():
             shutil.rmtree(collection_root)
+        self._user_prefix = ""
         self._init_collections()
 
 
@@ -140,6 +160,60 @@ class _AuthSentinelHandler(BaseHTTPRequestHandler):
             self.end_headers()
 
     do_PROPFIND = do_REPORT = do_GET = do_PUT = do_DELETE = do_OPTIONS = _dispatch
+
+
+class NextcloudLoginFlowHandler(BaseHTTPRequestHandler):
+    """Fake Nextcloud server serving the Login Flow v2 API (Nextcloud 16+).
+
+    Immediately returns pre-staged credentials set via the admin POST /login-flow
+    endpoint, simulating a completed browser login without opening a real browser.
+    """
+
+    admin_handler_class = None  # Set on the class before the server starts
+    caldav_port: int = 5232     # Set on the class before the server starts
+
+    def log_message(self, fmt, *args):  # noqa: ANN
+        pass
+
+    def do_GET(self):  # noqa: N802
+        if self.path.startswith("/index.php/login/v2/grant"):
+            self._respond(200, b"OK")
+        else:
+            self._respond(404, b"")
+
+    def do_POST(self):  # noqa: N802
+        if self.path == "/index.php/login/v2":
+            token = str(uuid.uuid4())
+            port = self.server.server_address[1]
+            body = json.dumps({
+                "poll": {
+                    "token": token,
+                    "endpoint": f"http://localhost:{port}/index.php/login/v2/poll",
+                },
+                "login": f"http://localhost:{port}/index.php/login/v2/grant?token={token}",
+            }).encode()
+            self._respond(200, body, content_type="application/json")
+        elif self.path == "/index.php/login/v2/poll":
+            creds = self.__class__.admin_handler_class.login_flow_credentials
+            if creds is None:
+                self._respond(404, b"")
+                return
+            body = json.dumps({
+                "server": f"http://localhost:{self.__class__.caldav_port}",
+                "loginName": creds["loginName"],
+                "appPassword": creds["appPassword"],
+            }).encode()
+            self._respond(200, body, content_type="application/json")
+        else:
+            self._respond(404, b"")
+
+    def _respond(self, status: int, body: bytes, content_type: str = "text/plain") -> None:
+        self.send_response(status)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        if body:
+            self.wfile.write(body)
 
 
 class RadicaleController:
@@ -266,6 +340,7 @@ class RadicaleController:
 class AdminHandler(BaseHTTPRequestHandler):
     storage: "Storage"               # Set on the class before the server starts
     radicale: "RadicaleController"   # Set on the class before the server starts
+    login_flow_credentials: dict | None = None  # Set by POST /login-flow
 
     def log_message(self, fmt, *args):  # noqa: ANN
         pass  # Suppress per-request output
@@ -301,6 +376,7 @@ class AdminHandler(BaseHTTPRequestHandler):
             self._json(201, {"uid": uid})
         elif self.path == "/reset":
             self.storage.reset()
+            self.__class__.login_flow_credentials = None
             self._json(200, {"status": "ok"})
         elif self.path == "/credentials":
             body = self._read_body()
@@ -310,6 +386,22 @@ class AdminHandler(BaseHTTPRequestHandler):
                 self._json(400, {"error": "user and password required"})
                 return
             self.radicale.set_credentials(user, password)
+            self._json(200, {"status": "ok"})
+        elif self.path == "/login-flow":
+            body       = self._read_body()
+            login_name = body.get("loginName")
+            app_password = body.get("appPassword")
+            if not login_name or not app_password:
+                self._json(400, {"error": "loginName and appPassword required"})
+                return
+            # Move any existing calendars into the user namespace so that Radicale
+            # serves them under /<loginName>/<calendar-uid>/ — matching what the
+            # app discovers as the calendar-home-set when it authenticates as this user.
+            self.storage.set_user(login_name)
+            self.__class__.login_flow_credentials = {
+                "loginName": login_name,
+                "appPassword": app_password,
+            }
             self._json(200, {"status": "ok"})
         else:
             self._json(404, {"error": "not found"})
@@ -331,6 +423,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=5232, help="CalDAV server port")
     parser.add_argument("--admin-port", type=int, default=5233, help="Admin API port")
+    parser.add_argument("--nextcloud-port", type=int, default=5234, help="Nextcloud Login Flow v2 port")
     parser.add_argument("--storage-dir", help="Storage directory (default: temp dir)")
     args = parser.parse_args()
 
@@ -360,6 +453,15 @@ def main() -> None:
 
     Handler.storage  = storage
     Handler.radicale = radicale
+
+    class NCHandler(NextcloudLoginFlowHandler):
+        pass
+
+    NCHandler.admin_handler_class = Handler
+    NCHandler.caldav_port = args.port
+    nextcloud_server = HTTPServer(("localhost", args.nextcloud_port), NCHandler)
+    threading.Thread(target=nextcloud_server.serve_forever, daemon=True).start()
+
     admin_server = HTTPServer(("localhost", args.admin_port), Handler)
 
     try:
@@ -367,6 +469,7 @@ def main() -> None:
     except KeyboardInterrupt:
         pass
     finally:
+        nextcloud_server.shutdown()
         radicale.stop()
 
 

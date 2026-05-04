@@ -3,6 +3,7 @@ import Foundation
 enum ServerConfiguration {
     case generic(url: String)
     case nextcloud(serverURL: String, username: String)
+    case nextcloudSSO(calDAVURL: String, loginName: String, appPassword: String)
 }
 
 @MainActor
@@ -26,8 +27,15 @@ final class TaskStore: ObservableObject {
         storage = ServerAddressStorage(defaults: defaults)
 
         if let envURL = ProcessInfo.processInfo.environment["CALDAV_URL"] {
-            serverAddress = envURL
-            if let url = URL(string: envURL) {
+            // If we have stored Nextcloud settings that match this host, prefer
+            // the constructed Nextcloud CalDAV URL for the stored username.
+            let adjusted = resolveNextcloudCalDAVURLIfNeeded(
+                base: envURL,
+                storedServerURL: storage.loadNextcloudServerURL(),
+                storedUsername: storage.loadNextcloudUsername()
+            )
+            serverAddress = adjusted
+            if let url = URL(string: adjusted) {
                 client = CalDAVClient(baseURL: url)
             }
         } else if let ncServerURL = storage.loadNextcloudServerURL(),
@@ -70,6 +78,17 @@ final class TaskStore: ObservableObject {
             if let url = URL(string: constructed) {
                 client = CalDAVClient(baseURL: url)
             }
+        case .nextcloudSSO(let calDAVURL, let loginName, let appPassword):
+            serverAddress = calDAVURL
+            nextcloudServerURL = nil
+            nextcloudUsername = loginName
+            if let url = URL(string: calDAVURL) {
+                client = CalDAVClient(
+                    baseURL: url,
+                    credential: CalDAVCredential(username: loginName, password: appPassword)
+                )
+            }
+            _Concurrency.Task { await sync() }
         }
     }
 

@@ -19,12 +19,18 @@ import Foundation
 /// ```
 final class FakeCalDAVServer {
 
-    static let calDAVPort = 5232
-    static let adminPort  = 5233
+    static let calDAVPort    = 5232
+    static let adminPort     = 5233
+    static let nextcloudPort = 5234
 
     /// The base URL the app should use to reach the CalDAV server.
     var calDAVURL: URL {
         URL(string: "http://localhost:\(FakeCalDAVServer.calDAVPort)")!
+    }
+
+    /// The base Nextcloud URL used for Login Flow v2 and CalDAV via the Nextcloud proxy.
+    var nextcloudURL: URL {
+        URL(string: "http://localhost:\(FakeCalDAVServer.nextcloudPort)")!
     }
 
     private let calendarUser = "tasks-test"
@@ -43,20 +49,18 @@ final class FakeCalDAVServer {
 
     func start() throws {
         let proc = Process()
+        let serverArgs = [
+            scriptURL.path,
+            "--port", "\(FakeCalDAVServer.calDAVPort)",
+            "--admin-port", "\(FakeCalDAVServer.adminPort)",
+            "--nextcloud-port", "\(FakeCalDAVServer.nextcloudPort)",
+        ]
         if let python3 = ProcessInfo.processInfo.environment["AT_PYTHON_PATH"] {
             proc.executableURL = URL(fileURLWithPath: python3)
-            proc.arguments = [
-                scriptURL.path,
-                "--port", "\(FakeCalDAVServer.calDAVPort)",
-                "--admin-port", "\(FakeCalDAVServer.adminPort)",
-            ]
+            proc.arguments = serverArgs
         } else {
             proc.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-            proc.arguments = [
-                "python3", scriptURL.path,
-                "--port", "\(FakeCalDAVServer.calDAVPort)",
-                "--admin-port", "\(FakeCalDAVServer.adminPort)",
-            ]
+            proc.arguments = ["python3"] + serverArgs
         }
         proc.standardOutput = FileHandle.nullDevice
         proc.standardError  = FileHandle.nullDevice
@@ -76,6 +80,15 @@ final class FakeCalDAVServer {
     /// Removes all calendars and tasks, restoring the server to a clean state.
     func reset() throws {
         try admin(method: "POST", path: "/reset")
+    }
+
+    /// Stages a Nextcloud Login Flow v2 response so the app can authenticate without a browser.
+    ///
+    /// After this call the fake Nextcloud server (port ``nextcloudPort``) will immediately
+    /// return the given credentials from its poll endpoint, simulating a completed browser login.
+    func enableLoginFlow(loginName: String, appPassword: String) throws {
+        let body: [String: String] = ["loginName": loginName, "appPassword": appPassword]
+        try admin(method: "POST", path: "/login-flow", body: body)
     }
 
     /// Configures the CalDAV server to require HTTP Basic authentication (RFC 7617).

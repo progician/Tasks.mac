@@ -4,6 +4,16 @@ public enum CalDAVError: Error {
     case authenticationRequired
 }
 
+public struct CalDAVCredential: Sendable {
+    public let username: String
+    public let password: String
+
+    public init(username: String, password: String) {
+        self.username = username
+        self.password = password
+    }
+}
+
 public struct CalDAVCalendar: Identifiable {
     public let id: String          // href, e.g. "/this-week-uid/"
     public let displayName: String
@@ -31,10 +41,16 @@ extension URLSession: HTTPClient {}
 /// of the namespace prefix the server chooses to use.
 public struct CalDAVClient: Sendable {
     let baseURL: URL
+    let credential: CalDAVCredential?
     private let http: any HTTPClient
 
-    public init(baseURL: URL, http: any HTTPClient = URLSession.shared) {
+    public init(
+        baseURL: URL,
+        credential: CalDAVCredential? = nil,
+        http: any HTTPClient = URLSession.shared
+    ) {
         self.baseURL = baseURL
+        self.credential = credential
         self.http = http
     }
 
@@ -54,30 +70,30 @@ public struct CalDAVClient: Sendable {
     // MARK: - Discovery
 
     private func resolvedCalendarHome() async -> URL {
-        guard let data = try? await propfind(url: baseURL, depth: "0", props: [
-            "<d:current-user-principal/>",
-            "<c:calendar-home-set/>",
-        ]) else { return baseURL }
+        do {
+            if let url = try await calendarHome(from: baseURL) { return url }
+        } catch {
+            return baseURL
+        }
+        guard baseURL.path.isEmpty || baseURL.path == "/" else { return baseURL }
+        var webdavBase = baseURL
+        webdavBase.appendPathComponent("remote.php/dav/")
+        return (try? await calendarHome(from: webdavBase)) ?? baseURL
+    }
 
-        let homeSetXPath  = "//*[local-name()='calendar-home-set']/*[local-name()='href']"
+    private func calendarHome(from startURL: URL) async throws -> URL? {
+        let homeSetXPath   = "//*[local-name()='calendar-home-set']/*[local-name()='href']"
         let principalXPath = "//*[local-name()='current-user-principal']/*[local-name()='href']"
-
+        let props = ["<d:current-user-principal/>", "<c:calendar-home-set/>"]
+        let data = try await propfind(url: startURL, depth: "0", props: props)
         if let href = firstStringValue(in: data, xpath: homeSetXPath),
-           let url  = URL(string: href, relativeTo: baseURL)?.absoluteURL {
-            return url
-        }
-
-        if let principal = firstStringValue(in: data, xpath: principalXPath),
-           let principalURL = URL(string: principal, relativeTo: baseURL)?.absoluteURL,
-           let principalData = try? await propfind(url: principalURL, depth: "0", props: [
-               "<c:calendar-home-set/>",
-           ]),
-           let href = firstStringValue(in: principalData, xpath: homeSetXPath),
-           let url  = URL(string: href, relativeTo: baseURL)?.absoluteURL {
-            return url
-        }
-
-        return baseURL
+           let url  = URL(string: href, relativeTo: startURL)?.absoluteURL { return url }
+        guard let principal = firstStringValue(in: data, xpath: principalXPath),
+              let principalURL = URL(string: principal, relativeTo: startURL)?.absoluteURL,
+              let principalData = try? await propfind(url: principalURL, depth: "0", props: ["<c:calendar-home-set/>"]),
+              let href = firstStringValue(in: principalData, xpath: homeSetXPath),
+              let url  = URL(string: href, relativeTo: principalURL)?.absoluteURL else { return nil }
+        return url
     }
 
     private func listCalendars(at homeURL: URL) async throws -> [CalDAVCalendar] {
@@ -89,6 +105,12 @@ public struct CalDAVClient: Sendable {
     }
 
     // MARK: - HTTP
+
+    private func addAuthorization(to request: inout URLRequest) {
+        guard let credential else { return }
+        let encoded = Data("\(credential.username):\(credential.password)".utf8).base64EncodedString()
+        request.setValue("Basic \(encoded)", forHTTPHeaderField: "Authorization")
+    }
 
     private func propfind(url: URL, depth: String, props: [String]) async throws -> Data {
         let body = """
@@ -104,6 +126,7 @@ public struct CalDAVClient: Sendable {
         request.setValue("application/xml; charset=utf-8", forHTTPHeaderField: "Content-Type")
         request.setValue(depth, forHTTPHeaderField: "Depth")
         request.httpBody = body.data(using: .utf8)
+        addAuthorization(to: &request)
         do {
             let (data, response) = try await http.data(for: request)
             if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 401 {
@@ -137,6 +160,7 @@ public struct CalDAVClient: Sendable {
         request.setValue("application/xml; charset=utf-8", forHTTPHeaderField: "Content-Type")
         request.setValue("1", forHTTPHeaderField: "Depth")
         request.httpBody = body.data(using: .utf8)
+        addAuthorization(to: &request)
         let (data, _) = try await http.data(for: request)
         return data
     }

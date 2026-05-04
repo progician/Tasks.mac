@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 enum ServerType {
     case generic
@@ -67,6 +68,7 @@ struct ServerEditView: View {
     @State private var genericURL: String
     @State private var nextcloudServerURL: String
     @State private var nextcloudUsername: String
+    @State private var isPollingLoginFlow = false
     @Environment(\.dismiss) private var dismiss
     let onConfirm: (ServerConfiguration) -> Void
 
@@ -82,6 +84,32 @@ struct ServerEditView: View {
         _nextcloudServerURL = State(initialValue: initialNextcloudServerURL)
         _nextcloudUsername = State(initialValue: initialNextcloudUsername)
         self.onConfirm = onConfirm
+    }
+
+    @MainActor
+    private func startLoginFlow() async {
+        guard let serverURL = URL(string: nextcloudServerURL) else { return }
+        isPollingLoginFlow = true
+        defer { isPollingLoginFlow = false }
+        do {
+            let flow = NextcloudLoginFlow()
+            let session = try await flow.initiate(serverURL: serverURL)
+            NSWorkspace.shared.open(session.loginURL)
+            for _ in 0..<60 {
+                if let creds = try await flow.poll(endpoint: session.pollEndpoint, token: session.token) {
+                    onConfirm(.nextcloudSSO(
+                        calDAVURL: creds.server.absoluteString,
+                        loginName: creds.loginName,
+                        appPassword: creds.appPassword
+                    ))
+                    dismiss()
+                    return
+                }
+                try await _Concurrency.Task.sleep(nanoseconds: 500_000_000)
+            }
+        } catch {
+            // surface errors in a later iteration
+        }
     }
 
     private var isValid: Bool {
@@ -133,6 +161,16 @@ struct ServerEditView: View {
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 320)
                     .accessibilityIdentifier("nextcloudUsernameField")
+                if isPollingLoginFlow {
+                    ProgressView("Waiting for browser login…")
+                        .frame(width: 320, alignment: .leading)
+                } else {
+                    Button("Sign in with Nextcloud") {
+                        _Concurrency.Task { await startLoginFlow() }
+                    }
+                    .disabled(!isValidCalDAVURL(nextcloudServerURL))
+                    .accessibilityIdentifier("signInWithNextcloudButton")
+                }
             }
             .opacity(serverType == .nextcloud ? 1 : 0)
             .frame(height: serverType == .nextcloud ? nil : 0)
