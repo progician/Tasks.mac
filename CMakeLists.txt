@@ -22,6 +22,7 @@ include(cmake/Dependencies.cmake)
 # ---------------------------------------------------------------------------
 add_library(TasksCore STATIC
     Sources/TasksCore/CalDAVClient.swift
+    Sources/TasksCore/NextcloudLoginFlow.swift
     Sources/TasksCore/Task.swift
     Sources/TasksCore/URLValidation.swift
     Sources/TasksCore/ServerAddressStorage.swift

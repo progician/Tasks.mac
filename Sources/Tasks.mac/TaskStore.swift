@@ -3,6 +3,7 @@ import Foundation
 enum ServerConfiguration {
     case generic(url: String)
     case nextcloud(serverURL: String, username: String)
+    case nextcloudSSO(calDAVURL: String, loginName: String, appPassword: String)
 }
 
 @MainActor
@@ -70,6 +71,17 @@ final class TaskStore: ObservableObject {
             if let url = URL(string: constructed) {
                 client = CalDAVClient(baseURL: url)
             }
+        case .nextcloudSSO(let calDAVURL, let loginName, let appPassword):
+            serverAddress = calDAVURL
+            nextcloudServerURL = nil
+            nextcloudUsername = loginName
+            if let url = URL(string: calDAVURL) {
+                client = CalDAVClient(
+                    baseURL: url,
+                    credential: CalDAVCredential(username: loginName, password: appPassword)
+                )
+            }
+            _Concurrency.Task { await sync() }
         }
     }
 

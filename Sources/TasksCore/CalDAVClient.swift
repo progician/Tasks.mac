@@ -4,6 +4,16 @@ public enum CalDAVError: Error {
     case authenticationRequired
 }
 
+public struct CalDAVCredential: Sendable {
+    public let username: String
+    public let password: String
+
+    public init(username: String, password: String) {
+        self.username = username
+        self.password = password
+    }
+}
+
 public struct CalDAVCalendar: Identifiable {
     public let id: String          // href, e.g. "/this-week-uid/"
     public let displayName: String
@@ -31,10 +41,16 @@ extension URLSession: HTTPClient {}
 /// of the namespace prefix the server chooses to use.
 public struct CalDAVClient: Sendable {
     let baseURL: URL
+    let credential: CalDAVCredential?
     private let http: any HTTPClient
 
-    public init(baseURL: URL, http: any HTTPClient = URLSession.shared) {
+    public init(
+        baseURL: URL,
+        credential: CalDAVCredential? = nil,
+        http: any HTTPClient = URLSession.shared
+    ) {
         self.baseURL = baseURL
+        self.credential = credential
         self.http = http
     }
 
@@ -90,6 +106,12 @@ public struct CalDAVClient: Sendable {
 
     // MARK: - HTTP
 
+    private func addAuthorization(to request: inout URLRequest) {
+        guard let credential else { return }
+        let encoded = Data("\(credential.username):\(credential.password)".utf8).base64EncodedString()
+        request.setValue("Basic \(encoded)", forHTTPHeaderField: "Authorization")
+    }
+
     private func propfind(url: URL, depth: String, props: [String]) async throws -> Data {
         let body = """
             <?xml version="1.0" encoding="utf-8"?>
@@ -104,6 +126,7 @@ public struct CalDAVClient: Sendable {
         request.setValue("application/xml; charset=utf-8", forHTTPHeaderField: "Content-Type")
         request.setValue(depth, forHTTPHeaderField: "Depth")
         request.httpBody = body.data(using: .utf8)
+        addAuthorization(to: &request)
         do {
             let (data, response) = try await http.data(for: request)
             if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 401 {
@@ -137,6 +160,7 @@ public struct CalDAVClient: Sendable {
         request.setValue("application/xml; charset=utf-8", forHTTPHeaderField: "Content-Type")
         request.setValue("1", forHTTPHeaderField: "Depth")
         request.httpBody = body.data(using: .utf8)
+        addAuthorization(to: &request)
         let (data, _) = try await http.data(for: request)
         return data
     }
