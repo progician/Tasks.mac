@@ -70,51 +70,30 @@ public struct CalDAVClient: Sendable {
     // MARK: - Discovery
 
     private func resolvedCalendarHome() async -> URL {
-        let props = ["<d:current-user-principal/>", "<c:calendar-home-set/>"]
+        do {
+            if let url = try await calendarHome(from: baseURL) { return url }
+        } catch {
+            return baseURL
+        }
+        guard baseURL.path.isEmpty || baseURL.path == "/" else { return baseURL }
+        var webdavBase = baseURL
+        webdavBase.appendPathComponent("remote.php/dav/")
+        return (try? await calendarHome(from: webdavBase)) ?? baseURL
+    }
 
-        // First try the provided base URL.
-        guard let data = try? await propfind(url: baseURL, depth: "0", props: props) else { return baseURL }
-
-        let homeSetXPath  = "//*[local-name()='calendar-home-set']/*[local-name()='href']"
+    private func calendarHome(from startURL: URL) async throws -> URL? {
+        let homeSetXPath   = "//*[local-name()='calendar-home-set']/*[local-name()='href']"
         let principalXPath = "//*[local-name()='current-user-principal']/*[local-name()='href']"
-
+        let props = ["<d:current-user-principal/>", "<c:calendar-home-set/>"]
+        let data = try await propfind(url: startURL, depth: "0", props: props)
         if let href = firstStringValue(in: data, xpath: homeSetXPath),
-           let url  = URL(string: href, relativeTo: baseURL)?.absoluteURL {
-            return url
-        }
-
-        if let principal = firstStringValue(in: data, xpath: principalXPath),
-           let principalURL = URL(string: principal, relativeTo: baseURL)?.absoluteURL,
-           let principalData = try? await propfind(url: principalURL, depth: "0", props: ["<c:calendar-home-set/>"]),
-           let href = firstStringValue(in: principalData, xpath: homeSetXPath),
-           let url  = URL(string: href, relativeTo: baseURL)?.absoluteURL {
-            return url
-        }
-
-        // If nothing was discovered and the base looks like the server root,
-        // some Nextcloud installations expose DAV under /remote.php/dav/ — try
-        // a PROPFIND there and repeat discovery using that URL as the base.
-        let pathIsRoot = baseURL.path.isEmpty || baseURL.path == "/"
-        if pathIsRoot {
-            var webdavBase = baseURL
-            webdavBase.appendPathComponent("remote.php/dav/")
-            if let webdavData = try? await propfind(url: webdavBase, depth: "0", props: props) {
-                if let href = firstStringValue(in: webdavData, xpath: homeSetXPath),
-                   let url = URL(string: href, relativeTo: webdavBase)?.absoluteURL {
-                    return url
-                }
-
-                if let principal = firstStringValue(in: webdavData, xpath: principalXPath),
-                   let principalURL = URL(string: principal, relativeTo: webdavBase)?.absoluteURL,
-                   let principalData = try? await propfind(url: principalURL, depth: "0", props: ["<c:calendar-home-set/>"]),
-                   let href = firstStringValue(in: principalData, xpath: homeSetXPath),
-                   let url  = URL(string: href, relativeTo: webdavBase)?.absoluteURL {
-                    return url
-                }
-            }
-        }
-
-        return baseURL
+           let url  = URL(string: href, relativeTo: startURL)?.absoluteURL { return url }
+        guard let principal = firstStringValue(in: data, xpath: principalXPath),
+              let principalURL = URL(string: principal, relativeTo: startURL)?.absoluteURL,
+              let principalData = try? await propfind(url: principalURL, depth: "0", props: ["<c:calendar-home-set/>"]),
+              let href = firstStringValue(in: principalData, xpath: homeSetXPath),
+              let url  = URL(string: href, relativeTo: principalURL)?.absoluteURL else { return nil }
+        return url
     }
 
     private func listCalendars(at homeURL: URL) async throws -> [CalDAVCalendar] {
