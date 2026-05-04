@@ -60,14 +60,33 @@ class Storage:
 
     def __init__(self, base: Path) -> None:
         self.base = base
+        self._user_prefix: str = ""
         self._init_collections()
 
     @property
     def user_dir(self) -> Path:
-        # With an empty username, Python's pathlib drops the empty component,
-        # so collections sit directly under collection-root/ and Radicale
-        # serves them at /<uid>/ with no user-prefix in the URL.
+        # When a user prefix is set (e.g. after enableLoginFlow), calendars live
+        # under collection-root/<user>/ so Radicale maps them to /<user>/<uid>/.
+        # Without a prefix, collections sit directly under collection-root/ and
+        # Radicale serves them at /<uid>/ with no user-prefix in the URL.
+        if self._user_prefix:
+            return self.base / "collection-root" / self._user_prefix
         return self.base / "collection-root"
+
+    def set_user(self, username: str) -> None:
+        """Move existing root-level calendars into the user's namespace.
+
+        Called when SSO credentials are staged so that Radicale serves them
+        under /<username>/<calendar-uid>/ — matching what a real Nextcloud
+        instance returns as the calendar-home-set for the authenticated user.
+        """
+        root = self.base / "collection-root"
+        new_user_dir = root / username
+        new_user_dir.mkdir(parents=True, exist_ok=True)
+        for item in list(root.iterdir()):
+            if item.is_dir() and not item.name.startswith(".") and item.name != username:
+                shutil.move(str(item), str(new_user_dir / item.name))
+        self._user_prefix = username
 
     def _init_collections(self) -> None:
         self.user_dir.mkdir(parents=True, exist_ok=True)
@@ -103,6 +122,7 @@ class Storage:
         collection_root = self.base / "collection-root"
         if collection_root.exists():
             shutil.rmtree(collection_root)
+        self._user_prefix = ""
         self._init_collections()
 
 
@@ -374,8 +394,10 @@ class AdminHandler(BaseHTTPRequestHandler):
             if not login_name or not app_password:
                 self._json(400, {"error": "loginName and appPassword required"})
                 return
-            # Stores credentials for the Nextcloud Login Flow v2 fake endpoint.
-            # The Nextcloud server on nextcloudPort uses these to respond to poll requests.
+            # Move any existing calendars into the user namespace so that Radicale
+            # serves them under /<loginName>/<calendar-uid>/ — matching what the
+            # app discovers as the calendar-home-set when it authenticates as this user.
+            self.storage.set_user(login_name)
             self.__class__.login_flow_credentials = {
                 "loginName": login_name,
                 "appPassword": app_password,

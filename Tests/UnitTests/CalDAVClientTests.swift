@@ -190,12 +190,14 @@ final class CalDAVClientSpec: QuickSpec {
             context("when neither home-set nor principal is present") {
                 it("falls back to listing the base URL directly") {
                     stub.enqueue(xml: emptyMultistatus)
+                    // The client probes /remote.php/dav/ when the base is a root URL.
+                    stub.enqueue(xml: emptyMultistatus)
                     stub.enqueue(xml: calendarListing(calendars: [("/shopping/", "Shopping")]))
 
                     let calendars = try await CalDAVClient(baseURL: base, http: stub).discoverCalendars()
 
                     expect(calendars.map(\.displayName)).to(equal(["Shopping"]))
-                    expect(stub.requests[1].url).to(equal(base))
+                    expect(stub.requests[2].url).to(equal(base))
                 }
             }
 
