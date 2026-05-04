@@ -266,6 +266,7 @@ class RadicaleController:
 class AdminHandler(BaseHTTPRequestHandler):
     storage: "Storage"               # Set on the class before the server starts
     radicale: "RadicaleController"   # Set on the class before the server starts
+    login_flow_credentials: dict | None = None  # Set by POST /login-flow
 
     def log_message(self, fmt, *args):  # noqa: ANN
         pass  # Suppress per-request output
@@ -310,6 +311,20 @@ class AdminHandler(BaseHTTPRequestHandler):
                 self._json(400, {"error": "user and password required"})
                 return
             self.radicale.set_credentials(user, password)
+            self._json(200, {"status": "ok"})
+        elif self.path == "/login-flow":
+            body       = self._read_body()
+            login_name = body.get("loginName")
+            app_password = body.get("appPassword")
+            if not login_name or not app_password:
+                self._json(400, {"error": "loginName and appPassword required"})
+                return
+            # Stores credentials for the Nextcloud Login Flow v2 fake endpoint.
+            # The Nextcloud server on nextcloudPort uses these to respond to poll requests.
+            self.__class__.login_flow_credentials = {
+                "loginName": login_name,
+                "appPassword": app_password,
+            }
             self._json(200, {"status": "ok"})
         else:
             self._json(404, {"error": "not found"})

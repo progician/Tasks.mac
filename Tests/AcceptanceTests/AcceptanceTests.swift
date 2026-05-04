@@ -347,6 +347,60 @@ class AcceptanceSpec: QuickSpec {
                 }
             }
 
+            context("when the user signs in via Nextcloud Login Flow") {
+                let ssoDomain = "Tasks.mac.AcceptanceTests.NextcloudSSO"
+
+                beforeEach {
+                    UserDefaults(suiteName: ssoDomain)?.removePersistentDomain(forName: ssoDomain)
+                }
+
+                afterEach {
+                    UserDefaults(suiteName: ssoDomain)?.removePersistentDomain(forName: ssoDomain)
+                }
+
+                it("authenticates via browser login and syncs calendars without a saved password") {
+                    let calendarUID = (try? fakeServer.addCalendar(name: "Work")) ?? ""
+                    try! fakeServer.enableLoginFlow(loginName: "alice", appPassword: "app-secret-123")
+                    try! fakeServer.addTask(summary: "Review PR", toCalendar: calendarUID)
+
+                    process = launchApp(
+                        environment: ["AT_DEFAULTS_DOMAIN": ssoDomain],
+                        removingKeys: ["CALDAV_URL"]
+                    )
+                    guard process != nil else { fail("Could not launch app"); return }
+                    appElement = AXUIElementCreateApplication(process!.processIdentifier)
+                    guard let app = appElement else { fail("Could not get app element"); return }
+
+                    guard let serverButton = UIAXHelper.findElementById(
+                        in: app, id: "serverAddressButton", timeout: 5.0
+                    ) else { fail("Server address button not found"); return }
+                    AXUIElementPerformAction(serverButton, kAXPressAction as CFString)
+
+                    guard let nextcloudOption = UIAXHelper.findElementById(
+                        in: app, id: "nextcloudServerType", timeout: 3.0
+                    ) else { fail("Nextcloud server type option not found"); return }
+                    AXUIElementPerformAction(nextcloudOption, kAXPressAction as CFString)
+                    UIAXHelper.spinRunLoop(for: 0.3)
+
+                    guard let serverURLField = UIAXHelper.findElementById(
+                        in: app, id: "nextcloudServerURLField", timeout: 3.0
+                    ) else { fail("Nextcloud server URL field not found"); return }
+                    UIAXHelper.setValue(
+                        "http://localhost:\(FakeCalDAVServer.nextcloudPort)",
+                        on: serverURLField
+                    )
+                    UIAXHelper.spinRunLoop(for: 0.3)
+
+                    guard let ssoButton = UIAXHelper.findElementById(
+                        in: app, id: "signInWithNextcloudButton", timeout: 3.0
+                    ) else { fail("Sign in with Nextcloud button not found"); return }
+                    AXUIElementPerformAction(ssoButton, kAXPressAction as CFString)
+
+                    let texts = UIAXHelper.findAllStaticTextValue(in: app, timeout: 15.0)
+                    expect(texts).to(contain("Work"))
+                }
+            }
+
             context("when the CalDAV server requires authentication and no credentials are given") {
                 beforeEach {
                     try! fakeServer.setupCredentials(user: "foo", password: "bar")
