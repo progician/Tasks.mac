@@ -359,7 +359,7 @@ class AcceptanceSpec: QuickSpec {
                 }
 
                 it("authenticates via browser login and syncs calendars without a saved password") {
-                    let calendarUID = (try? fakeServer.addCalendar(name: "Work")) ?? ""
+                    let calendarUID = try! fakeServer.addCalendar(name: "Work")
                     try! fakeServer.enableLoginFlow(loginName: "alice", appPassword: "app-secret-123")
                     try! fakeServer.addTask(summary: "Review PR", toCalendar: calendarUID)
 
