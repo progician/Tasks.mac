@@ -401,6 +401,33 @@ class AcceptanceSpec: QuickSpec {
                 }
             }
 
+            context("when the user selects a different calendar in the sidebar") {
+                beforeEach {
+                    let workUID = (try? fakeServer.addCalendar(name: "Work")) ?? ""
+                    let shoppingUID = (try? fakeServer.addCalendar(name: "Shopping")) ?? ""
+                    try! fakeServer.addTask(summary: "Review PR", toCalendar: workUID)
+                    try! fakeServer.addTask(summary: "Buy milk", toCalendar: shoppingUID)
+                }
+
+                it("shows the tasks of the selected calendar in the content area") {
+                    guard let app = launch() else { return }
+
+                    UIAXHelper.spinRunLoop(for: 2.0)
+
+                    guard let shoppingItem = UIAXHelper.findElementById(
+                        in: app, id: "calendarListItem-Shopping", timeout: 5.0
+                    ) else {
+                        fail("Shopping calendar item not found in sidebar")
+                        return
+                    }
+                    AXUIElementPerformAction(shoppingItem, kAXPressAction as CFString)
+
+                    let texts = UIAXHelper.findAllStaticTextValue(in: app, timeout: 5.0)
+                    expect(texts).to(contain("Shopping"))
+                    expect(texts).to(contain("Buy milk"))
+                }
+            }
+
             context("when the CalDAV server requires authentication and no credentials are given") {
                 beforeEach {
                     try! fakeServer.setupCredentials(user: "foo", password: "bar")
