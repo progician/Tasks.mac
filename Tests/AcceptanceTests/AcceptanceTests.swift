@@ -64,15 +64,15 @@ class AcceptanceSpec: QuickSpec {
                     try! fakeServer.addCalendar(name: "Next Week")
                 }
 
-                it("shows them as task list names in the sidebar") {
+                it("shows them as selectable list items in the sidebar") {
                     guard let app = launch() else { return }
-                    guard UIAXHelper.findFirstElementByRole(
-                        in: app, as: kAXOutlineRole, timeout: 5.0
-                    ) != nil else { fail("Sidebar did not appear"); return }
 
-                    let items = UIAXHelper.findAllStaticTextValue(in: app, timeout: 10.0)
-                    expect(items).to(contain("This Week"))
-                    expect(items).to(contain("Next Week"))
+                    expect(
+                        UIAXHelper.findElementById(in: app, id: "calendarListItem-This Week", timeout: 10.0)
+                    ).notTo(beNil())
+                    expect(
+                        UIAXHelper.findElementById(in: app, id: "calendarListItem-Next Week", timeout: 5.0)
+                    ).notTo(beNil())
                 }
             }
 
@@ -398,6 +398,33 @@ class AcceptanceSpec: QuickSpec {
 
                     let texts = UIAXHelper.findAllStaticTextValue(in: app, timeout: 15.0)
                     expect(texts).to(contain("Work"))
+                }
+            }
+
+            context("when the user selects a different calendar in the sidebar") {
+                beforeEach {
+                    let workUID = (try? fakeServer.addCalendar(name: "Work")) ?? ""
+                    let shoppingUID = (try? fakeServer.addCalendar(name: "Shopping")) ?? ""
+                    try! fakeServer.addTask(summary: "Review PR", toCalendar: workUID)
+                    try! fakeServer.addTask(summary: "Buy milk", toCalendar: shoppingUID)
+                }
+
+                it("shows the tasks of the selected calendar in the content area") {
+                    guard let app = launch() else { return }
+
+                    UIAXHelper.spinRunLoop(for: 2.0)
+
+                    guard let shoppingItem = UIAXHelper.findElementById(
+                        in: app, id: "calendarListItem-Shopping", timeout: 5.0
+                    ) else {
+                        fail("Shopping calendar item not found in sidebar")
+                        return
+                    }
+                    AXUIElementPerformAction(shoppingItem, kAXPressAction as CFString)
+
+                    let texts = UIAXHelper.findAllStaticTextValue(in: app, timeout: 5.0)
+                    expect(texts).to(contain("Shopping"))
+                    expect(texts).to(contain("Buy milk"))
                 }
             }
 

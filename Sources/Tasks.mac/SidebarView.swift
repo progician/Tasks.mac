@@ -34,7 +34,13 @@ struct SidebarView: View {
             if !store.calendars.isEmpty {
                 Section("My Lists") {
                     ForEach(store.calendars) { calendar in
-                        Text(calendar.displayName)
+                        Button {
+                            _Concurrency.Task { await store.selectCalendar(calendar) }
+                        } label: {
+                            Text(calendar.displayName)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("calendarListItem-\(calendar.displayName)")
                     }
                 }
             }

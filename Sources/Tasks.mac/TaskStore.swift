@@ -92,6 +92,19 @@ final class TaskStore: ObservableObject {
         }
     }
 
+    func selectCalendar(_ calendar: CalDAVCalendar) async {
+        selectedCalendar = calendar
+        guard let client else { return }
+        do {
+            tasks = try await client.fetchTasks(from: calendar.id)
+                .map { Task(title: $0.summary) }
+        } catch CalDAVError.authenticationRequired {
+            syncError = "CalDAV server requires authentication"
+        } catch {
+            // Surface errors properly in a later iteration.
+        }
+    }
+
     func sync() async {
         guard let client else { return }
         syncError = nil
@@ -99,9 +112,7 @@ final class TaskStore: ObservableObject {
             let discovered = try await client.discoverCalendars()
             calendars = discovered
             if let first = discovered.first {
-                selectedCalendar = first
-                tasks = try await client.fetchTasks(from: first.id)
-                    .map { Task(title: $0.summary) }
+                await selectCalendar(first)
             }
             lastSync = Date()
         } catch CalDAVError.authenticationRequired {
