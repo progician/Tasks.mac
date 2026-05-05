@@ -64,15 +64,15 @@ class AcceptanceSpec: QuickSpec {
                     try! fakeServer.addCalendar(name: "Next Week")
                 }
 
-                it("shows them as task list names in the sidebar") {
+                it("shows them as selectable list items in the sidebar") {
                     guard let app = launch() else { return }
-                    guard UIAXHelper.findFirstElementByRole(
-                        in: app, as: kAXOutlineRole, timeout: 5.0
-                    ) != nil else { fail("Sidebar did not appear"); return }
 
-                    let items = UIAXHelper.findAllStaticTextValue(in: app, timeout: 10.0)
-                    expect(items).to(contain("This Week"))
-                    expect(items).to(contain("Next Week"))
+                    expect(
+                        UIAXHelper.findElementById(in: app, id: "calendarListItem-This Week", timeout: 10.0)
+                    ).notTo(beNil())
+                    expect(
+                        UIAXHelper.findElementById(in: app, id: "calendarListItem-Next Week", timeout: 5.0)
+                    ).notTo(beNil())
                 }
             }
 
